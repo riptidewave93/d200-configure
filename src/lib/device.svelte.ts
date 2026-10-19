@@ -26,6 +26,8 @@ export class Device {
   progress = $state<{ done: number; total: number } | null>(null);
   // set when someone else saved a config since we read ours
   changed = $state<ConfigInfo | null>(null);
+  // keys held down on the device right now
+  down = $state<number[]>([]);
 
   onKey: ((e: KeyEvent) => void) | null = null;
   // called after each connect, including after a re-plug
@@ -108,6 +110,7 @@ export class Device {
     this.state = "none";
     this.hello = this.host = this.settings = this.changed = null;
     this.progress = null;
+    this.down = [];
     await conn?.close().catch(() => {});
   }
 
@@ -140,9 +143,12 @@ export class Device {
         if (info.rev !== this.rev) this.changed = info;
         break;
       }
-      case Event.Key:
-        this.onKey?.(JSON.parse(text.decode(p)) as KeyEvent);
+      case Event.Key: {
+        const e = JSON.parse(text.decode(p)) as KeyEvent;
+        this.down = e.release ? this.down.filter((k) => k !== e.key) : [...this.down, e.key];
+        this.onKey?.(e);
         break;
+      }
     }
   }
 

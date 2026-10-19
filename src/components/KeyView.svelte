@@ -1,10 +1,10 @@
-<!-- One key, drawn by the device's own code. A key without a button is black, as on the device. -->
+<!-- One key's picture, drawn by the device's own code. -->
 <script lang="ts">
   import type { Button } from "../lib/config";
   import { app } from "../lib/context";
   import { drawKey } from "../lib/draw";
 
-  let { key, button, on = false }: { key: number; button?: Button; on?: boolean } = $props();
+  let { key, button, on = false }: { key: number; button: Button; on?: boolean } = $props();
 
   const { doc, deck } = app();
   let canvas: HTMLCanvasElement;
@@ -13,10 +13,6 @@
     const d = deck();
     const ctx = canvas.getContext("2d");
     if (!d || !ctx) return;
-    if (!button) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      return;
-    }
     // read the button deeply, so any edit to it redraws
     const b = JSON.parse(JSON.stringify(button)) as Button;
     const px = drawKey(d, doc, key, b, on);
@@ -27,7 +23,7 @@
   });
 </script>
 
-<canvas bind:this={canvas} class:empty={!button}></canvas>
+<canvas bind:this={canvas}></canvas>
 
 <style>
   canvas {
@@ -35,9 +31,5 @@
     width: 100%;
     height: 100%;
     background: #000;
-  }
-  canvas.empty {
-    outline: 1px dashed #333;
-    outline-offset: -1px;
   }
 </style>

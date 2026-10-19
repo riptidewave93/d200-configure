@@ -23,7 +23,7 @@
   let host = $derived(device.host);
 </script>
 
-<div class="card">
+<div>
   <h2>Device</h2>
   <dl>
     <dt>Software</dt>
@@ -82,7 +82,11 @@
 </div>
 
 <style>
+  h2 {
+    margin-bottom: 12px;
+  }
   dl {
+    font-size: 14px;
     display: grid;
     grid-template-columns: max-content 1fr;
     gap: 4px 16px;

@@ -1,34 +1,53 @@
-/* Colours as on the device's update page (d200-deck internal/deckupdate/style.css) */
+/* The page uses the Go fonts, the same family the device draws key labels in. */
+@font-face {
+  font-family: "Go";
+  src: url("./wasm/Go-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Go";
+  src: url("./wasm/Go-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+/* Colours follow the device's update page (d200-deck internal/deckupdate/style.css). */
 :root {
-  --bg: #f6f6f4;
-  --card: #fff;
+  --bg: #f2f2f0;
+  --panel: #ffffff;
+  --field: #f7f7f5;
   --fg: #1c1c1c;
-  --muted: #666;
-  --line: #ddd;
+  --muted: #6b6b6b;
+  --line: #e0e0dc;
   --accent: #2f6fde;
+  --accent-fg: #ffffff;
   --bad: #c62828;
   --warn-bg: #fff4d6;
   --warn-fg: #6b4a00;
-  --warn-line: #f9a825;
-  --face: #0b0b0b;
+  --warn-line: #f0c96a;
+  --shadow: rgba(0, 0, 0, 0.18);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #121212;
-    --card: #1c1c1c;
+    --panel: #1b1b1b;
+    --field: #232323;
     --fg: #e8e8e8;
     --muted: #9a9a9a;
-    --line: #333;
+    --line: #2e2e2e;
     --accent: #6b9cf0;
+    --accent-fg: #0d1a33;
     --bad: #ef5350;
-    --warn-bg: #3a2e0a;
+    --warn-bg: #2f2709;
     --warn-fg: #ffd77a;
-    --warn-line: #b8860b;
-    --face: #000;
+    --warn-line: #6b5414;
+    --shadow: rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
 }
+
 * {
   box-sizing: border-box;
 }
@@ -36,84 +55,127 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 16px/1.5 system-ui, sans-serif;
+  font: 15px/1.5 "Go", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
-input,
-select,
-textarea,
-button {
-  font: inherit;
-  color: inherit;
-  max-width: 100%;
-}
-input:not([type]),
-input[type="text"],
-input[type="number"],
-input[type="url"],
-select,
-textarea {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-}
-button,
-a.button {
-  display: inline-block;
-  padding: 8px 16px;
-  border: 0;
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
-  cursor: pointer;
-  text-decoration: none;
-}
-button.plain {
-  background: none;
-  color: var(--accent);
-  padding: 8px 4px;
-}
-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-label {
-  display: block;
-  margin: 0 0 12px;
-}
-label > span {
-  display: block;
-  color: var(--muted);
-  font-size: 14px;
-  margin-bottom: 2px;
+h1,
+h2,
+h3 {
+  font-weight: 500;
+  margin: 0;
 }
 h2 {
-  font-size: 18px;
-  margin: 0 0 12px;
+  font-size: 17px;
+}
+h3 {
+  font-size: 15px;
 }
 p {
   margin: 0 0 8px;
 }
 a {
   color: var(--accent);
+  text-underline-offset: 2px;
 }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Fields */
+input:not([type="checkbox"], [type="color"]),
+select,
+textarea {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+textarea {
+  resize: vertical;
+}
+input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+label {
+  display: block;
+  margin: 0 0 14px;
+}
+label > span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+/* Buttons: primary is the one thing to do; .plain are the quiet rest. */
+button,
+a.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+button.plain {
+  background: none;
+  color: var(--accent);
+  font-weight: 400;
+  padding: 7px 6px;
+}
+button.plain:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+button.quiet {
+  background: none;
+  color: var(--muted);
+  font-weight: 400;
+  padding: 7px 6px;
+}
+button.quiet:hover:not(:disabled) {
+  color: var(--fg);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Shared bits */
 .muted {
   color: var(--muted);
 }
 .bad {
   color: var(--bad);
 }
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 20px;
+.small {
+  font-size: 13px;
 }
 .warn {
   padding: 10px 14px;
   border: 1px solid var(--warn-line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--warn-bg);
   color: var(--warn-fg);
 }
@@ -125,4 +187,15 @@ a {
 }
 .grow {
   flex: 1;
+}
+details > summary {
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 10px;
+  list-style-position: outside;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }

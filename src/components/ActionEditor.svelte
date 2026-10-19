@@ -23,7 +23,7 @@
     action = $bindable(),
     types,
     label = "Does",
-  }: { action: Action; types: string[]; label?: string } = $props();
+  }: { action: Action; types: string[]; label?: string | null } = $props();
 
   const { doc, device, deck } = app();
   let names = $derived(deck()?.names);
@@ -73,8 +73,8 @@
 </script>
 
 <label>
-  <span>{label}</span>
-  <select value={action.type ?? ""} onchange={(e) => setType(e.currentTarget.value)}>
+  {#if label}<span>{label}</span>{/if}
+  <select value={action.type ?? ""} onchange={(e) => setType(e.currentTarget.value)} aria-label={label ?? "Action"}>
     {#if types.some((t) => !isPC(t))}
       <optgroup label="On the device">
         {#each types.filter((t) => !isPC(t)) as t (t)}<option value={t}>{typeName(t)}</option>{/each}

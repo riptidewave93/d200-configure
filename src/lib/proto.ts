@@ -50,6 +50,7 @@ export interface Hello {
   os: { name?: string; version?: string; flavour?: string; build?: string };
   serial: string;
   keys: number;
+  model?: string; // e.g. "ulanzi,d200"; older devices don't send it
   ipv4?: string;
 }
 

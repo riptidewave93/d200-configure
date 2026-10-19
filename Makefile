@@ -26,14 +26,16 @@ node_modules : package.json package-lock.json
 	$(RUN) $(NODE_IMAGE) npm ci --no-audit --no-fund
 	touch $@
 
-# d200-deck's config code as WebAssembly, into src/wasm
+# d200-deck's config and drawing code as WebAssembly, and the Go fonts the page uses, into src/wasm
 wasm :
 	mkdir -p src/wasm .cache
 	printf 'go 1.27\n\nuse (\n\t../wasm\n\t%s\n)\n' $(if $(DOCKER),/deck,$(abspath $(DECK_DIR))) > .cache/go.work
 	$(RUN) $(if $(DOCKER),-v "$(abspath $(DECK_DIR))":/deck:ro$(COMMA)z -e GOCACHE=/repo/.cache/go-build \
 		-e GOMODCACHE=/repo/.cache/mod $(GO_IMAGE)) env GOWORK=$(if $(DOCKER),/repo,$(REPO_DIR))/.cache/go.work \
 		GOOS=js GOARCH=wasm GOFLAGS=-buildvcs=false sh -c 'go build -C wasm -trimpath -ldflags "-s -w" \
-		-o ../src/wasm/deck.wasm . && cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" src/wasm/'
+		-o ../src/wasm/deck.wasm . && cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" src/wasm/ && \
+		fonts="$$(go list -C wasm -m -f "{{.Dir}}" golang.org/x/image)/font/gofont/ttfs" && \
+		install -m 644 "$$fonts/Go-Regular.ttf" "$$fonts/Go-Medium.ttf" src/wasm/'
 
 # d200-deck at DECK_VERSION into .cache/d200-deck, for CI: make deck-source && make DECK_DIR=.cache/d200-deck
 deck-source :

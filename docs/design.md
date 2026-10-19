@@ -100,13 +100,35 @@ download size: about 10 MB, 3.2 MB compressed, cached by the browser after the f
 Keys redraw when their button changes. Images and fonts are handed to the drawing code only when
 they change, since a config can hold megabytes of them.
 
-## Several devices
+## Device models
 
-Only the D200 exists today. To keep room for other devices:
+`src/lib/models.ts` lists the kinds of device the site knows. A model has:
 
-- The page says "device", not "D200".
-- The key layout comes from d200-deck's `render` package, not from this site.
-- What a device can do comes from the device itself (`hello`, `settings`, `host`).
+| Field | Is |
+|---|---|
+| `id` | What the device reports as `model` in `hello`, e.g. `ulanzi,d200` |
+| `windows` | Where each key's picture shows on the screen, in screen pixels, numbered as in the config |
+| `cap` | How far a key cap reaches past its picture, and its corner radius |
+| `body` | How far the body reaches past the outer key caps on each side, and its corner radius |
+
+`face()` turns a model into the face the page draws: the grey body, a black cap per key, and the
+key's picture inside it. Everything is in screen pixels, so pictures, caps and body line up, and
+the face scales with the page.
+
+The site picks a model by the `model` the device reports, then by its number of keys, then the
+first in the list (also used with no device). A test checks the D200's windows against d200-deck's
+`render.Key`, so the two can't drift. Adding a device means adding its entry here, and its drawing
+code in d200-deck.
+
+The page says "device", not "D200", so a new model needs no wording changes.
+
+## Look
+
+- One accent colour, for selection and the main action. Dark and light follow the system, with the
+  same colours as the device's update page.
+- The page uses the Go fonts, the same family the device draws key labels in. They come from the
+  Go module the WebAssembly part is built from.
+- The device face is the one detailed element; the rest stays flat and quiet.
 
 ## Not done yet
 

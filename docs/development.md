@@ -22,7 +22,7 @@ Repos/
 | `make check` | Type checks (TypeScript and Svelte) |
 | `make test` | Unit tests |
 | `make build` | The site, into `dist/` |
-| `make wasm` | Just the WebAssembly part, into `src/wasm/` (the targets above run it) |
+| `make wasm` | Just the WebAssembly part and the Go fonts, into `src/wasm/` (the targets above run it) |
 | `make clean` | Removes `dist/`, `node_modules/` and `.cache/` |
 
 `make <target> DOCKER=` uses the host's Node and Go instead of Docker.
@@ -55,6 +55,8 @@ WebHID works on `localhost`, so `make dev` and Chrome are enough.
 | `src/lib/device.svelte.ts` | The connected device, reconnecting after it re-plugs |
 | `src/lib/doc.svelte.ts` | The config being edited: pages, keys, unsaved changes |
 | `src/lib/deck.ts` | Loads the WebAssembly part |
+| `src/lib/draw.ts` | Draws keys with it |
+| `src/lib/models.ts` | The kinds of device: their keys and face |
 | `src/lib/fakedevice.ts` | The in-memory device, for tests and `?fake` |
 | `wasm/main.go` | The WebAssembly part: d200-deck's `deck` and `render` packages for the browser |
 

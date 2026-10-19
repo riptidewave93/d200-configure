@@ -48,3 +48,4 @@ and the [USB protocol](https://github.com/riptidewave93/d200-deck/blob/main/docs
 
 GPL-3.0-or-later. The site includes d200-deck's Go code, built to WebAssembly; its third-party parts
 are listed in d200-deck's [NOTICE.md](https://github.com/riptidewave93/d200-deck/blob/main/NOTICE.md).
+The page uses the [Go fonts](https://go.dev/blog/go-fonts) (BSD-3-Clause), from that same code.
