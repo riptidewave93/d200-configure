@@ -16,6 +16,7 @@ import {
   type Request,
   type Settings,
   Status,
+  type Time,
   Version,
 } from "./proto";
 
@@ -41,6 +42,10 @@ export class FakeDevice implements Transport {
   unknown = new Set<number>();
   // set to drop replies, as a device that went away
   silent = false;
+  // the times it was sent, in Unix ms
+  times: number[] = [];
+  // refuses times before this, as a device does before its build time
+  built = 0;
   // set to ask on the "screen" before a commit or a new USB address: the
   // answer comes after delay ms
   ask: { delay: number; yes: boolean } | null = null;
@@ -88,6 +93,12 @@ export class FakeDevice implements Transport {
         return [Status.OK, json(this.hello)];
       case Cmd.Host:
         return [Status.OK, json(this.host)];
+      case Cmd.Time: {
+        const t = (JSON.parse(text.decode(p)) as Time).unix_ms;
+        if (t < this.built) return [Status.Failed, bytes("time is before the build")];
+        this.times.push(t);
+        return [Status.OK];
+      }
       case Cmd.Identify:
         if (p.length !== 1 || p[0] >= this.hello.keys) return [Status.BadRequest];
         this.identified.push(p[0]);

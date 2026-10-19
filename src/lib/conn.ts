@@ -15,6 +15,7 @@ import {
   MaxMessage,
   type Settings,
   Status,
+  type Time,
 } from "./proto";
 
 // Transport moves raw reports to and from the device.
@@ -166,6 +167,11 @@ export class Conn {
 
   host() {
     return this.requestJSON<HostInfo>(Cmd.Host);
+  }
+
+  // time sets the device's clock to now.
+  async time() {
+    await this.request(Cmd.Time, json.encode(JSON.stringify({ unix_ms: Date.now() } satisfies Time)));
   }
 
   // settings reads the settings, or changes the ones given. The device

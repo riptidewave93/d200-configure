@@ -2,7 +2,7 @@
 // config, and what it says on its own (events).
 
 import { Conn, DeviceError, type Progress, type Transport } from "./conn";
-import { Event, Status, Version, type ConfigInfo, type Hello, type HostInfo, type KeyEvent, type Settings } from "./proto";
+import { Event, Status, TimePeriod, Version, type ConfigInfo, type Hello, type HostInfo, type KeyEvent, type Settings } from "./proto";
 import { HIDTransport, known, pick } from "./webhid";
 
 export type State =
@@ -41,6 +41,7 @@ export class Device {
   private hid: HIDDevice | null = null;
   private serial = "";
   private poll = 0;
+  private clock = 0;
 
   constructor() {
     if (typeof navigator !== "undefined" && "hid" in navigator) {
@@ -87,6 +88,8 @@ export class Device {
       if (hello.protocol < Version) throw new Error("This device's software is too old for this site. Update it first.");
       this.hello = hello;
       this.serial = hello.serial;
+      await this.setClock();
+      this.clock = window.setInterval(() => this.setClock(), TimePeriod);
       this.settings = await conn.settings();
       await this.checkHost();
       this.poll = window.setInterval(() => this.checkHost(), hostPoll);
@@ -107,6 +110,7 @@ export class Device {
 
   private async drop() {
     clearInterval(this.poll);
+    clearInterval(this.clock);
     const conn = this.conn;
     this.conn = null;
     this.state = "none";
@@ -138,6 +142,7 @@ export class Device {
     switch (code) {
       case Event.USBRebinding:
         clearInterval(this.poll);
+        clearInterval(this.clock);
         this.state = "reconnecting";
         break;
       case Event.ConfigChanged: {
@@ -152,6 +157,14 @@ export class Device {
         break;
       }
     }
+  }
+
+  // setClock sends the device the time. The PC helper does too, so this
+  // matters only without it. Nothing depends on it: an older device doesn't
+  // know the command, and a device refuses a time before its software was
+  // built, so errors are ignored.
+  private async setClock() {
+    await this.conn?.time().catch(() => {});
   }
 
   private async checkHost() {

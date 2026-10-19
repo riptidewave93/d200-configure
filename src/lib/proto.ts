@@ -20,7 +20,12 @@ export const Cmd = {
   ConfigData: 0x0b,
   ConfigCommit: 0x0c,
   Host: 0x0d,
+  // sets the device's clock: it has no battery-backed one
+  Time: 0x0e,
 } as const;
+
+// How often clients send the time.
+export const TimePeriod = 60 * 60_000;
 
 // How long the device waits for a press when it asks about a change: a
 // config that gives keys new actions, or a new USB network address. The
@@ -73,6 +78,11 @@ export interface HostInfo {
   os?: string;
   apps?: HostApp[];
   state?: Record<string, boolean>;
+}
+
+// The time now, for Cmd.Time.
+export interface Time {
+  unix_ms: number;
 }
 
 export interface Settings {

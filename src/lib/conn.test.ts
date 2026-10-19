@@ -94,6 +94,12 @@ describe("Conn", () => {
     await expect(conn.host()).rejects.toMatchObject({ status: 1 });
   });
 
+  it("sends the time", async () => {
+    const { dev, conn } = connect();
+    await conn.time();
+    expect(Math.abs(dev.times[0] - Date.now())).toBeLessThan(1000);
+  });
+
   it("changes settings", async () => {
     const { conn } = connect();
     expect(await conn.settings({ usb_drive: false })).toMatchObject({ usb_drive: false });

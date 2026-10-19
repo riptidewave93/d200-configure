@@ -49,6 +49,9 @@ d200-deck's [docs/api.md](https://github.com/riptidewave93/d200-deck/blob/main/d
 - **The PC helper** sends the device a heartbeat, and the device reports it through the `host`
   command. The site asks every 5 s (nothing announces a change) and uses the answer only for hints,
   such as "The PC helper isn't running".
+- **The clock.** The device has no battery-backed clock, so the site sends it the time on
+  connecting and every hour, as the PC helper does. It ignores a device that doesn't know the
+  command.
 - **Re-plugging.** Changing a USB setting makes the device drop off USB for a moment. The site waits
   for it to come back, reconnects, and checks it's the same device by its serial number.
 
