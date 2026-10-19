@@ -38,11 +38,9 @@ Edge reach through [WebHID](https://developer.mozilla.org/docs/Web/API/WebHID_AP
 d200-deck's [docs/api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md);
 `proto.ts` and `conn.ts` follow its Go client (`proto/`) closely, with the same names.
 
-- **One request at a time.** The device keeps only the latest request it hasn't read, so `Conn`
-  queues requests and waits up to 2 s for each reply.
-- **Shared channel.** Every program on the PC that has the device open (the PC helper, other tabs)
-  sees every reply. Requests carry a sequence number that starts at a random value, and replies to
-  other numbers are ignored.
+- **Requests.** `Conn` sends one request at a time, queuing the rest, and waits up to 2 s for each
+  reply. Why, and how replies are matched on a channel other programs share, is in
+  [api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#requests).
 - **Events** the site uses: `key` (pressing a key on the device selects it on the page),
   `config-changed` (someone else saved) and `usb-rebinding` (the device is about to re-plug).
 - **Browsers.** Only Chrome and Edge are supported. Browsers without WebHID (Firefox, Safari, phones)
@@ -66,11 +64,9 @@ The config is one JSON file, images and fonts included, up to 2 MiB. It moves in
    replace their config or load it. Otherwise it writes the new config, based on the rev it read.
 4. The device checks the config again and refuses it, with a reason, if it changed meanwhile or
    isn't valid. The site shows that reason as it is.
-5. If the new config gives keys new actions (anything but opening pages, back and home), the device
-   asks on its screen first, and answers only after a press, within 60 s. So a website can't make
-   keys run things without the user knowing. When the answer doesn't come at once, the site says
-   "Press Save on the device to confirm." Changes to looks and pages save at once. A new USB network
-   address is asked about the same way ("Press Change").
+5. Some saves wait for a press on the device: new key actions ([api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#the-config))
+   and a new USB network address ([api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#settings)). When the answer doesn't come at once,
+   the site says "Press Save on the device to confirm." (or "Press Change").
 
 After a re-plug the site compares revs and reads the config again only if it changed.
 
@@ -178,8 +174,9 @@ The page says "device", not "D200", so a new model needs no wording changes.
 
 ## Look
 
-- One accent colour, for selection and the main action. Dark and light follow the system, with the
-  same colours as the device's update page.
+- One accent colour, for selection and the main action. Dark and light follow the system. The
+  accent, text and error colours are the device's update page's (`internal/deckupdate/style.css`
+  in d200-deck), so change both together.
 - The page uses the Go fonts, the same family the device draws key labels in. They come from the
   Go module the WebAssembly part is built from.
 - The device face is the one detailed element; the rest stays flat and quiet.

@@ -38,8 +38,7 @@ go to memory and are lost on reload. `?fake` works only on the dev server, not t
 WebHID works on `localhost`, so `make dev` and Chrome are enough.
 
 - On Linux, install the udev rule first (see the [README](../README.md#using-it)).
-- The device needs a `deckd` with the config commands: d200-deck `9f1171e` or later. Images built
-  from d200-buildroot get one once its `package/d200-deck` pin is bumped past it.
+- The device needs a recent `deckd`; any current d200-buildroot image has one.
 - In Chrome, `chrome://device-log` shows WebHID errors; the page's console shows the site's.
 - `deckhost config get FILE` (in d200-deck) reads the same config over USB, to compare.
 

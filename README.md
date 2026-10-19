@@ -41,8 +41,16 @@ the device's config work. Adding custom images and fonts is not done yet.
 | [docs/development.md](docs/development.md) | Building, running locally, testing with a device, publishing |
 | [docs/design.md](docs/design.md) | How the site works and why |
 
-The device side is documented in d200-deck: the [config format](https://github.com/riptidewave93/d200-deck/blob/main/docs/config.md)
-and the [USB protocol](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md).
+## The D200 project
+
+| Repo | What |
+|---|---|
+| [d200-buildroot](https://github.com/riptidewave93/d200-buildroot) | The firmware: U-Boot, Linux, the root filesystem; installing, updating, recovery |
+| [d200-deck](https://github.com/riptidewave93/d200-deck) | `deckd` (keys and update page on the device), `deckhost` (the PC helper), the config format and USB API |
+| [d200-configure](https://github.com/riptidewave93/d200-configure) | The configuration website: https://riptidewave93.github.io/d200-configure/ |
+
+What the site reads and writes is in d200-deck's [config format](https://github.com/riptidewave93/d200-deck/blob/main/docs/config.md)
+and [USB protocol](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md) docs.
 
 ## License
 
