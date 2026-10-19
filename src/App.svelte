@@ -58,6 +58,10 @@
     const t = e.target as HTMLElement;
     if (!t.closest("input, select, textarea")) doc.key = null;
   }
+  // a click outside a menu closes it
+  function outside(e: PointerEvent) {
+    if (!(e.target as Element).closest(".device-menu, .files-more")) showDevice = fileMenu = false;
+  }
   const linux = navigator.userAgent.includes("Linux") && !navigator.userAgent.includes("Android");
   // the device animates GIFs only up to so many frame pixels
   let tooMuchMotion = $derived(!!deck && !!doc.config && animatedPixels(doc.config, deck) > maxAnimPixels);
@@ -158,8 +162,10 @@
       error = `That file isn't a valid config: ${readable(why)}.`;
       return;
     }
+    // not on the device yet: Undo goes back to what is
+    const onDevice = connected ? doc.saved : "";
     doc.load(c);
-    doc.saved = ""; // not on the device yet
+    doc.saved = onDevice;
   }
 
   function saveFile() {
@@ -201,7 +207,7 @@
   });
 </script>
 
-<svelte:window onkeydown={escape} />
+<svelte:window onkeydown={escape} onpointerdown={outside} />
 
 <header class="top">
   <h1>Device Setup</h1>
