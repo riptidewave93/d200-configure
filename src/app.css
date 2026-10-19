@@ -1,0 +1,128 @@
+/* Colours as on the device's update page (d200-deck internal/deckupdate/style.css) */
+:root {
+  --bg: #f6f6f4;
+  --card: #fff;
+  --fg: #1c1c1c;
+  --muted: #666;
+  --line: #ddd;
+  --accent: #2f6fde;
+  --bad: #c62828;
+  --warn-bg: #fff4d6;
+  --warn-fg: #6b4a00;
+  --warn-line: #f9a825;
+  --face: #0b0b0b;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --card: #1c1c1c;
+    --fg: #e8e8e8;
+    --muted: #9a9a9a;
+    --line: #333;
+    --accent: #6b9cf0;
+    --bad: #ef5350;
+    --warn-bg: #3a2e0a;
+    --warn-fg: #ffd77a;
+    --warn-line: #b8860b;
+    --face: #000;
+    color-scheme: dark;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.5 system-ui, sans-serif;
+}
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+  max-width: 100%;
+}
+input:not([type]),
+input[type="text"],
+input[type="number"],
+input[type="url"],
+select,
+textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+}
+button,
+a.button {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+}
+button.plain {
+  background: none;
+  color: var(--accent);
+  padding: 8px 4px;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+label {
+  display: block;
+  margin: 0 0 12px;
+}
+label > span {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+p {
+  margin: 0 0 8px;
+}
+a {
+  color: var(--accent);
+}
+.muted {
+  color: var(--muted);
+}
+.bad {
+  color: var(--bad);
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+}
+.warn {
+  padding: 10px 14px;
+  border: 1px solid var(--warn-line);
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.grow {
+  flex: 1;
+}

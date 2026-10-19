@@ -1,0 +1,50 @@
+# d200-configure
+
+The configuration website for the [Ulanzi D200](https://www.ulanzi.com/) running
+[d200-deck](https://github.com/riptidewave93/d200-deck): set up its pages of keys from your browser.
+
+**https://riptidewave93.github.io/d200-configure/**
+
+It runs entirely in the browser and talks to the device over USB (WebHID). There is no server and
+nothing to install, apart from a udev rule on Linux.
+
+## Using it
+
+1. Plug the device into your PC.
+2. Open the site in **Chrome or Edge** on a desktop. Firefox and Safari can't talk to USB devices.
+3. Choose **Connect a device** and pick it from the list.
+4. Change keys and pages, then choose **Save to device**.
+
+**Linux:** the browser needs a udev rule to open the device. It comes with the PC helper
+([deckhost](https://github.com/riptidewave93/d200-deck/blob/main/docs/install.md)), or install
+[70-d200-deck.rules](https://github.com/riptidewave93/d200-deck/blob/main/contrib/linux/70-d200-deck.rules)
+on its own:
+
+```bash
+sudo curl -o /etc/udev/rules.d/70-d200-deck.rules \
+  https://raw.githubusercontent.com/riptidewave93/d200-deck/main/contrib/linux/70-d200-deck.rules
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+Without a device, **Open a config file** edits a saved `config.json`. **Save file** keeps a copy of
+the config on your PC.
+
+## Status
+
+Early. Editing keys, pages and actions, live key previews, and reading and saving the device's
+config work. Adding custom images and fonts is not done yet.
+
+## Docs
+
+| Doc | Read it for |
+|---|---|
+| [docs/development.md](docs/development.md) | Building, running locally, testing with a device, publishing |
+| [docs/design.md](docs/design.md) | How the site works and why |
+
+The device side is documented in d200-deck: the [config format](https://github.com/riptidewave93/d200-deck/blob/main/docs/config.md)
+and the [USB protocol](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md).
+
+## License
+
+GPL-3.0-or-later. The site includes d200-deck's Go code, built to WebAssembly; its third-party parts
+are listed in d200-deck's [NOTICE.md](https://github.com/riptidewave93/d200-deck/blob/main/NOTICE.md).
