@@ -20,6 +20,24 @@ export interface Pixels {
   width: number;
   height: number;
   data: Uint8ClampedArray<ArrayBuffer>;
+  // when the key's animation shows its next frame (ms since 1970), or 0
+  next: number;
+}
+
+// A picture fitted to the device: base64 PNG, JPEG or GIF.
+export interface Fitted {
+  data: string;
+  width: number;
+  height: number;
+  frames: number;
+  dropped: number; // frames left out to fit
+  changed: boolean; // false: it fit as it was
+}
+
+export interface ImageInfo {
+  width: number;
+  height: number;
+  frames: number;
 }
 
 export interface Deck {
@@ -33,6 +51,10 @@ export interface Deck {
   setAssets(config: Config): string[];
   // renderKey draws key i as the device does; on draws its look while on
   renderKey(i: number, b: Button, on?: boolean): Pixels | null;
+  // fitImage scales a picture down to width x height and maxBytes, as the
+  // device needs; it throws why it can't
+  fitImage(b: Uint8Array, width: number, height: number, maxBytes: number): Fitted;
+  imageInfo(base64: string): ImageInfo | null;
   layout: Layout;
   names: Names;
   icons: string[];
@@ -51,6 +73,8 @@ interface Exports {
   embed(json: string): string;
   setAssets(json: string): string;
   renderKey(i: number, json: string, on: boolean): Pixels | null;
+  fitImage(b: Uint8Array, width: number, height: number, maxBytes: number): string;
+  imageInfo(base64: string): string;
   layout: string;
   iconNames: string;
   iconPath(name: string): IconPath | null;
@@ -96,6 +120,15 @@ async function start(code?: BufferSource): Promise<Deck> {
       return r.unknown;
     },
     renderKey: (i, b, on = false) => x.renderKey(i, JSON.stringify(b), on),
+    fitImage: (b, w, h, max) => {
+      const r = JSON.parse(x.fitImage(b, w, h, max));
+      if (r.error) throw new Error(r.error);
+      return r;
+    },
+    imageInfo: (s) => {
+      const r = JSON.parse(x.imageInfo(s));
+      return r.error ? null : r;
+    },
     layout: JSON.parse(x.layout),
     icons,
     hasIcon: (name) => iconSet.has(name),

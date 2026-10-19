@@ -8,7 +8,7 @@ DOCKER ?= docker
 # checkout next to this one; in CI, DECK_VERSION fetched by make deck-source.
 DECK_DIR ?= ../d200-deck
 DECK_REPO := https://github.com/riptidewave93/d200-deck.git
-DECK_VERSION := 479cf5c7c06511f2b3991813c7c9a4880803665c
+DECK_VERSION := 8cf67d955ffe679d64d83ce3f00cbb66a8b2ebd8
 
 REPO_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 COMMA := ,
@@ -26,13 +26,16 @@ node_modules : package.json package-lock.json
 	$(RUN) $(NODE_IMAGE) npm ci --no-audit --no-fund
 	touch $@
 
+# Go, with d200-deck's source as part of a workspace (written by GOWORK_FILE)
+GO := $(RUN) $(if $(DOCKER),-v "$(abspath $(DECK_DIR))":/deck:ro$(COMMA)z -e GOCACHE=/repo/.cache/go-build \
+	-e GOMODCACHE=/repo/.cache/mod $(GO_IMAGE)) env GOWORK=$(if $(DOCKER),/repo,$(REPO_DIR))/.cache/go.work GOFLAGS=-buildvcs=false
+GOWORK_FILE = mkdir -p .cache && printf 'go 1.27\n\nuse (\n\t../wasm\n\t%s\n)\n' $(if $(DOCKER),/deck,$(abspath $(DECK_DIR))) > .cache/go.work
+
 # d200-deck's config and drawing code as WebAssembly, and the Go fonts the page uses, into src/wasm
 wasm :
-	mkdir -p src/wasm .cache
-	printf 'go 1.27\n\nuse (\n\t../wasm\n\t%s\n)\n' $(if $(DOCKER),/deck,$(abspath $(DECK_DIR))) > .cache/go.work
-	$(RUN) $(if $(DOCKER),-v "$(abspath $(DECK_DIR))":/deck:ro$(COMMA)z -e GOCACHE=/repo/.cache/go-build \
-		-e GOMODCACHE=/repo/.cache/mod $(GO_IMAGE)) env GOWORK=$(if $(DOCKER),/repo,$(REPO_DIR))/.cache/go.work \
-		GOOS=js GOARCH=wasm GOFLAGS=-buildvcs=false sh -c 'go build -C wasm -trimpath -ldflags "-s -w" \
+	mkdir -p src/wasm
+	$(GOWORK_FILE)
+	$(GO) GOOS=js GOARCH=wasm sh -c 'go build -C wasm -trimpath -ldflags "-s -w" \
 		-o ../src/wasm/deck.wasm . && cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" src/wasm/ && \
 		fonts="$$(go list -C wasm -m -f "{{.Dir}}" golang.org/x/image)/font/gofont/ttfs" && \
 		install -m 644 "$$fonts/Go-Regular.ttf" "$$fonts/Go-Medium.ttf" src/wasm/'
@@ -47,9 +50,10 @@ deck-source :
 check : node_modules wasm
 	$(RUN) $(NODE_IMAGE) npx svelte-check --fail-on-warnings
 
-# Unit tests
+# Unit tests: the site's, then the Go ones (picture fitting)
 test : node_modules wasm
 	$(RUN) $(NODE_IMAGE) npx vitest run
+	$(GO) go test -C wasm ./fit/
 
 # The site, into ./dist
 build : node_modules wasm

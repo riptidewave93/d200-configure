@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Config } from "./config";
+import { load } from "./deck";
 import { Doc } from "./doc.svelte";
 
 function config(): Config {
@@ -14,6 +16,25 @@ function config(): Config {
 }
 
 describe("Doc", () => {
+  it("tidies before saving: catalog icons in, unused icons and images out", async () => {
+    const deck = await load(readFileSync(new URL("../wasm/deck.wasm", import.meta.url)));
+    const d = new Doc();
+    const c = config();
+    c.pages.main.keys["1"] = { icon: "mic", action: {} };
+    c.pages.main.keys["2"] = { image: "logo", action: {} };
+    c.icons = { old: { d: "M0 0Z", viewBox: "0 0 1 1" } };
+    c.images = { logo: "x", unused: "y" };
+    d.load(c);
+    expect(d.tidy(deck)).toEqual([]);
+    expect(Object.keys(d.config!.icons!)).toEqual(["mic"]);
+    expect(Object.keys(d.config!.images!)).toEqual(["logo"]);
+    delete d.config!.pages.main.keys["1"];
+    delete d.config!.pages.main.keys["2"];
+    d.tidy(deck);
+    expect(d.config!.images).toBeUndefined();
+    expect(d.config!.icons).toBeUndefined();
+  });
+
   it("tells when the config changed, and reverts", () => {
     const d = new Doc();
     d.load(config());

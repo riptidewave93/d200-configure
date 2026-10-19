@@ -1,26 +1,41 @@
-<!-- A key's icon: a built-in one by name, or an emoji, picked from a searchable grid. -->
+<!-- A key's icon: a built-in one by name, an emoji, or a picture, picked from a searchable grid. -->
 <script lang="ts">
   import { app } from "../lib/context";
   import { emojiChar, emojis, search as searchEmoji, type Emoji } from "../lib/emoji";
+  import { dataURL } from "../lib/pictures";
   import Icon from "./Icon.svelte";
 
+  // onpicture asks for a picture from a file
   let {
     value,
     onchange,
     onemoji,
-  }: { value?: string; onchange: (name: string) => void; onemoji?: (e: Emoji) => void } = $props();
+    onpicture,
+  }: {
+    value?: string;
+    onchange: (name: string) => void;
+    onemoji?: (e: Emoji) => void;
+    onpicture?: () => void;
+  } = $props();
 
   const { deck, doc } = app();
   // enough to scan at a glance; searching narrows the rest
   const shown = 120;
 
   let open = $state(false);
-  let tab = $state<"icons" | "emoji">("icons");
+  let tab = $state<"icons" | "emoji" | "pictures">("icons");
   let search = $state("");
   let allEmoji = $state<Emoji[]>([]);
   let emojiError = $state("");
 
   let emoji = $derived(emojiChar(value));
+  // a picture icon in the config (an emoji is one too, shown as itself)
+  let picture = $derived(!emoji && value ? doc.config?.icons?.[value]?.png : undefined);
+  let pictures = $derived(
+    Object.entries(doc.config?.icons ?? {})
+      .filter(([n, i]) => i.png && !emojiChar(n))
+      .map(([n, i]) => ({ name: n, src: dataURL(i.png!) })),
+  );
   let iconMatches = $derived.by(() => {
     const all = deck()?.icons ?? [];
     const q = search.trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -34,7 +49,9 @@
       .map(({ n }) => n);
   });
   let emojiMatches = $derived(searchEmoji(allEmoji, search));
-  let matches = $derived(tab === "icons" ? iconMatches.length : emojiMatches.length);
+  let matches = $derived(
+    tab === "icons" ? iconMatches.length : tab === "emoji" ? emojiMatches.length : pictures.length,
+  );
   let unknown = $derived(
     !!value && !emoji && !!deck() && !deck()!.hasIcon(value) && !(value in (doc.config?.icons ?? {})),
   );
@@ -64,10 +81,12 @@
   <span>Icon</span>
   <div class="row">
     <span class="current" aria-hidden="true">
-      {#if emoji}<span class="emoji">{emoji}</span>{:else if value && !unknown}<Icon name={value} />{/if}
+      {#if emoji}<span class="emoji">{emoji}</span>
+      {:else if picture}<img src={dataURL(picture)} alt="" />
+      {:else if value && !unknown}<Icon name={value} />{/if}
     </span>
-    {#if emoji}
-      <span class="grow emoji-name">Emoji</span>
+    {#if emoji || picture}
+      <span class="grow emoji-name">{emoji ? "Emoji" : value}</span>
       <button type="button" class="quiet" onclick={() => onchange("")}>Remove</button>
     {:else}
       <input
@@ -93,20 +112,46 @@
         <button type="button" role="tab" aria-selected={tab === "emoji"} class:on={tab === "emoji"} onclick={showEmoji}
           >Emoji</button
         >
+        {#if onpicture}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "pictures"}
+            class:on={tab === "pictures"}
+            onclick={() => (tab = "pictures")}>Pictures</button
+          >
+        {/if}
       </div>
     {/if}
-    <!-- svelte-ignore a11y_autofocus -->
-    <input
-      bind:value={search}
-      placeholder={tab === "icons" ? "Search, e.g. volume" : "Search, e.g. game"}
-      aria-label="Search"
-      autofocus
-    />
+    {#if tab === "pictures"}
+      <button
+        type="button"
+        class="plain"
+        onclick={() => {
+          onpicture?.();
+          open = false;
+        }}>Add from file…</button
+      >
+    {:else}
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        bind:value={search}
+        placeholder={tab === "icons" ? "Search, e.g. volume" : "Search, e.g. game"}
+        aria-label="Search"
+        autofocus
+      />
+    {/if}
     <div class="grid">
       {#if tab === "icons"}
         {#each iconMatches.slice(0, shown) as name (name)}
           <button type="button" class="cell" class:on={name === value} title={name} onclick={() => pickIcon(name)}>
             <Icon {name} />
+          </button>
+        {/each}
+      {:else if tab === "pictures"}
+        {#each pictures as p (p.name)}
+          <button type="button" class="cell" class:on={p.name === value} title={p.name} onclick={() => pickIcon(p.name)}>
+            <img src={p.src} alt={p.name} />
           </button>
         {/each}
       {:else}
@@ -118,7 +163,8 @@
       {/if}
     </div>
     <p class="muted small">
-      {#if emojiError && tab === "emoji"}{emojiError}
+      {#if tab === "pictures"}A PNG, JPEG or GIF, made smaller to fit if it must. GIFs move on the device.
+      {:else if emojiError && tab === "emoji"}{emojiError}
       {:else if tab === "emoji" && !allEmoji.length}Loading…
       {:else if matches > shown}{shown} of {matches}. Search to find more.
       {:else if !matches}Nothing matches.
@@ -138,6 +184,12 @@
   .emoji {
     font-size: 26px;
     line-height: 1;
+  }
+  .current img,
+  .cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
   .emoji-name {
     color: var(--muted);

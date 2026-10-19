@@ -115,7 +115,7 @@ After a re-plug the site compares revs and reads the config again only if it cha
 - **Files:** **Open file** and **Save file** read and write `config.json`, for backups and for
   editing without a device. A file opened while connected counts as unsaved until saved to the device.
 
-## Icons and emoji
+## Icons, emoji and pictures
 
 The device keeps no icon catalog: a config carries the icons its keys show, in `icons` (d200-deck's
 [config.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/config.md)). The catalog
@@ -132,6 +132,28 @@ package.
   e.g. `emoji-1f3ae`. It's drawn at icon size, like other icons. Each emoji is kept once however
   many keys use it, and dropped when none does. The names and search words come from
   [emojibase](https://emojibase.dev/) (MIT), loaded only when the emoji picker opens.
+- **Pictures** from files (PNG, JPEG, GIF, or anything else the browser reads, turned into PNG
+  first) go in as a key's `image`, which fills the key, or as a picture icon (`pic-<file name>`),
+  drawn at icon size beside a label. Animated GIFs move, on the device and in the previews.
+
+### Fitting pictures
+
+The device's limits are tight (an image 256 KiB, a picture icon 24 KiB and 128 px), so a picture
+is fitted when it's added, by `wasm/fit` in the browser. A picture that already fits is kept as it
+is; otherwise:
+
+1. It's scaled down to where it's drawn: the key it's on (196 px, or the wide key), or 120 px for
+   an icon. Never up: the device does that when drawing.
+2. An animated GIF keeps every nth frame (their times added up) until it's within 100 frames and
+   the 2 M frame pixels the device animates, counted at the size it's drawn. Past that budget the
+   device shows a GIF's first frame, which a GIF that passes the config check alone can hit.
+3. It's encoded within the byte limit: PNG, then JPEG for opaque stills; a GIF with one palette
+   and only the pixels that change in each frame. If it's still too big, a GIF loses more frames
+   (down to 12), then everything shrinks by 15% and tries again.
+
+The page says what changed ("Made smaller to fit: 120×120, 24 of 48 frames"). The device's
+animation budget covers every GIF it has shown since the config loaded, so the page warns when
+the whole config's GIFs add up to more. Saving drops images no key shows, as it does icons.
 
 ## The device code in the browser
 
@@ -140,7 +162,8 @@ package.
 | Function | From | Used for |
 |---|---|---|
 | `validate` | `deck.Parse` | Checking a config before saving or opening it |
-| `renderKey`, `setAssets` | `render.Renderer`, `icons.Embed` | Key previews, pixel for pixel as on the device |
+| `renderKey`, `setAssets` | `render.Renderer`, `icons.Embed` | Key previews, pixel for pixel as on the device; animated GIFs redraw when `Renderer.Next` says |
+| `fitImage`, `imageInfo` | `wasm/fit`, `deck.ImageSize` | Fitting pictures as they're added (above) |
 | `layout` | `render.Key`, `render.Width/Height` | Where the keys sit on the face |
 | `iconNames`, `iconPath` | `icons.Names`, `icons.Get` | The icon picker |
 | `embed` | `icons.Embed` | Copying the icons keys use into the config before saving |
@@ -186,5 +209,6 @@ The page says "device", not "D200", so a new model needs no wording changes.
 
 ## Not done yet
 
-- Adding custom images and fonts (they're kept and drawn if a config already has them).
+- Adding custom fonts (they're kept and drawn if a config already has them).
+- A warning for label characters the device's fonts don't have (they show as boxes).
 - Moving or copying keys, e.g. by dragging.

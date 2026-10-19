@@ -8,8 +8,11 @@
 
   const { doc, deck } = app();
   let canvas: HTMLCanvasElement;
+  // bumped when an animated key's next frame is due
+  let frame = $state(0);
 
   $effect(() => {
+    void frame;
     const d = deck();
     const ctx = canvas.getContext("2d");
     if (!d || !ctx) return;
@@ -20,6 +23,9 @@
     canvas.width = px.width;
     canvas.height = px.height;
     ctx.putImageData(new ImageData(px.data, px.width, px.height), 0, 0);
+    if (!px.next) return;
+    const t = setTimeout(() => frame++, Math.max(20, px.next - Date.now()));
+    return () => clearTimeout(t);
   });
 </script>
 

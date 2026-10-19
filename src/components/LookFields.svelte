@@ -1,13 +1,16 @@
 <!-- How a key looks: icon or image, label, font and colours. -->
 <script lang="ts">
-  import { MaxIconBytes, type Look } from "../lib/config";
+  import { MaxIconBytes, MaxImageBytes, type Look } from "../lib/config";
   import { emojiID, emojiPNG, type Emoji } from "../lib/emoji";
   import { app } from "../lib/context";
   import { set } from "../lib/edit";
+  import { fitNote, iconSide, pictureID, readPicture } from "../lib/pictures";
   import ColorField from "./ColorField.svelte";
   import IconField from "./IconField.svelte";
 
-  let { look }: { look: Look } = $props();
+  // key: the key it's on, for the size images are fitted to
+  let { look, key }: { look: Look; key: number } = $props();
+  const uid = $props.id();
 
   const { doc, deck } = app();
   let images = $derived(Object.keys(doc.config?.images ?? {}).sort());
@@ -42,6 +45,50 @@
   function setImage(v: string) {
     set(look, "image", v);
     if (v) delete look.icon;
+    pictureNote = "";
+  }
+
+  // A picture from a file, fitted to the device as it's added: an image
+  // fills the key, a picture icon is drawn at icon size.
+  let fileInput: HTMLInputElement;
+  let adding = $state<"image" | "icon" | null>(null);
+  let pictureNote = $state("");
+  let pictureError = $state("");
+  let working = $state(false);
+
+  function choose(kind: "image" | "icon") {
+    adding = kind;
+    fileInput.click();
+  }
+
+  async function addPicture(f: File | undefined) {
+    const d = deck();
+    if (!f || !d || !adding) return;
+    pictureNote = pictureError = "";
+    working = true;
+    try {
+      const bytes = await readPicture(f);
+      const c = doc.config!;
+      if (adding === "image") {
+        const k = d.layout.keys[key];
+        const fit = d.fitImage(bytes, Math.min(k.w, 512), Math.min(k.h, 512), MaxImageBytes);
+        const id = pictureID(f.name, Object.keys(c.images ?? {}));
+        (c.images ??= {})[id] = fit.data;
+        setImage(id);
+        pictureNote = fitNote(fit);
+      } else {
+        const fit = d.fitImage(bytes, iconSide, iconSide, MaxIconBytes);
+        const id = pictureID(f.name, Object.keys(c.icons ?? {}), "pic-");
+        (c.icons ??= {})[id] = { png: fit.data };
+        setIcon(id);
+        pictureNote = fitNote(fit);
+      }
+    } catch (err) {
+      pictureError = `That picture can't be used: ${err instanceof Error ? err.message : err}.`;
+    } finally {
+      working = false;
+      fileInput.value = "";
+    }
   }
 
   // the device keeps up to 32 characters on up to 3 lines
@@ -53,17 +100,37 @@
   });
 </script>
 
-<IconField value={look.icon} onchange={setIcon} onemoji={setEmoji} />
+<IconField value={look.icon} onchange={setIcon} onemoji={setEmoji} onpicture={() => choose("icon")} />
 {#if emojiError}<p class="bad small">{emojiError}</p>{/if}
-{#if images.length}
-  <label>
-    <span>Or image</span>
-    <select value={look.image ?? ""} onchange={(e) => setImage(e.currentTarget.value)}>
-      <option value="">None</option>
-      {#each images as id (id)}<option value={id}>{id}</option>{/each}
-    </select>
-  </label>
-{/if}
+<div class="field">
+  <span id="{uid}-image">Or image, filling the key</span>
+  <div class="row">
+    {#if images.length}
+      <select
+        class="grow"
+        aria-labelledby="{uid}-image"
+        value={look.image ?? ""}
+        onchange={(e) => setImage(e.currentTarget.value)}
+      >
+        <option value="">None</option>
+        {#each images as id (id)}<option value={id}>{id}</option>{/each}
+      </select>
+    {:else}
+      <span class="grow muted">None</span>
+    {/if}
+    <button type="button" class="plain" disabled={working} onclick={() => choose("image")}>Add…</button>
+  </div>
+</div>
+<input
+  type="file"
+  accept="image/*"
+  hidden
+  bind:this={fileInput}
+  onchange={(e) => addPicture(e.currentTarget.files?.[0])}
+/>
+{#if working}<p class="muted small">Fitting the picture…</p>{/if}
+{#if pictureNote}<p class="muted small">{pictureNote}</p>{/if}
+{#if pictureError}<p class="bad small">{pictureError}</p>{/if}
 
 <label>
   <span>Label</span>
@@ -93,6 +160,15 @@
 </div>
 
 <style>
+  .field {
+    margin-bottom: 14px;
+  }
+  .field > span {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
   .colors {
     gap: 16px;
     margin-bottom: 12px;

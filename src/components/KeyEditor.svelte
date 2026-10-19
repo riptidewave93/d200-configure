@@ -43,7 +43,7 @@
     </div>
 
     <h3>Look</h3>
-    <LookFields look={button} />
+    <LookFields look={button} {key} />
 
     <h3>When pressed</h3>
     <ActionEditor bind:action={button.action} {types} label={null} />
@@ -52,7 +52,7 @@
       <details class="on" open={!!button.on}>
         <summary>Look while on, such as while muted</summary>
         {#if button.on}
-          <LookFields look={button.on} />
+          <LookFields look={button.on} {key} />
           <button class="plain" onclick={() => delete button.on}>Use the built-in look</button>
         {:else}
           <button class="plain" onclick={() => (button.on = {})}>Give it its own look</button>

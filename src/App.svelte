@@ -12,6 +12,7 @@
   import { Device, message } from "./lib/device.svelte";
   import { Doc } from "./lib/doc.svelte";
   import { modelFor } from "./lib/models";
+  import { animatedPixels, maxAnimPixels } from "./lib/pictures";
   import { browserWarning, supported } from "./lib/webhid";
 
   const device = new Device();
@@ -58,6 +59,8 @@
     if (!t.closest("input, select, textarea")) doc.key = null;
   }
   const linux = navigator.userAgent.includes("Linux") && !navigator.userAgent.includes("Android");
+  // the device animates GIFs only up to so many frame pixels
+  let tooMuchMotion = $derived(!!deck && !!doc.config && animatedPixels(doc.config, deck) > maxAnimPixels);
 
   let connected = $derived(device.state === "ready" || device.state === "busy");
   let status = $derived(
@@ -107,7 +110,7 @@
   async function save(force = false) {
     error = notice = "";
     if (deck) {
-      const unknown = doc.embedIcons(deck);
+      const unknown = doc.tidy(deck);
       if (unknown.length) {
         const names = unknown.map((n) => `"${n}"`).join(", ");
         error = `Can't save: no icon called ${names}.`;
@@ -160,7 +163,7 @@
   }
 
   function saveFile() {
-    if (deck) doc.embedIcons(deck); // so the file works on a device as it is
+    if (deck) doc.tidy(deck); // so the file works on a device as it is
     const blob = new Blob([JSON.stringify(doc.config, null, 2) + "\n"], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -320,6 +323,11 @@
         <div class="face">
           {#if deck}<Face {model} {doc} down={device.down} />{/if}
         </div>
+        {#if tooMuchMotion}
+          <p class="warn small motion">
+            The device can't animate this many moving pictures: some will stand still. Use fewer or smaller GIFs.
+          </p>
+        {/if}
         {#if doc.key === null}
           <p class="muted hint">
             {#if Object.keys(doc.config.pages[doc.page]?.keys ?? {}).length}
@@ -498,6 +506,9 @@
   .hint {
     margin: 18px 0 0;
     text-align: center;
+  }
+  .motion {
+    margin: 14px 0 0;
   }
   progress {
     width: 140px;

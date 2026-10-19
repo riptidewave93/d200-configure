@@ -7,15 +7,22 @@
 //	  those it has and the catalog, and the names found in neither
 //	setAssets(json) -> JSON: the config keys are drawn from (its icons embedded,
 //	  as embed does), and the icon names it lacks
-//	renderKey(i, buttonJSON, on) -> {width, height, data: RGBA pixels}, or null
+//	renderKey(i, buttonJSON, on) -> {width, height, data: RGBA pixels, next}, or null;
+//	  next is when the key's animation shows its next frame (Unix ms), or 0
+//	fitImage(bytes, width, height, maxBytes) -> JSON {data (base64), width, height, frames,
+//	  dropped, changed} or {error}: a picture fitted to the device (see package fit)
+//	imageInfo(base64) -> JSON {width, height, frames} or {error}
 //	layout -> JSON: {width, height, keys: [{x, y, w, h}]}, the key windows on the screen
 //	iconNames -> JSON: every icon in the catalog, sorted
 //	iconPath(name) -> {d, viewBox}: a catalog icon as SVG path data (nonzero fill), or null
 //	names -> JSON: the key, media key, system and font names, and app ops
 //	defaultConfig -> JSON: the config a device uses without one
+//go:build js && wasm
+
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"maps"
 	"slices"
@@ -24,6 +31,8 @@ import (
 	"github.com/riptidewave93/d200-deck/deck"
 	"github.com/riptidewave93/d200-deck/icons"
 	"github.com/riptidewave93/d200-deck/render"
+
+	"github.com/riptidewave93/d200-configure/wasm/fit"
 )
 
 var renderer = render.New(&deck.Config{})
@@ -34,6 +43,8 @@ func main() {
 		"embed":         js.FuncOf(embed),
 		"setAssets":     js.FuncOf(setAssets),
 		"renderKey":     js.FuncOf(renderKey),
+		"fitImage":      js.FuncOf(fitImage),
+		"imageInfo":     js.FuncOf(imageInfo),
 		"layout":        layout(),
 		"iconNames":     marshal(icons.Names()),
 		"iconPath":      js.FuncOf(iconPath),
@@ -113,7 +124,39 @@ func renderKey(_ js.Value, args []js.Value) any {
 	}
 	data := js.Global().Get("Uint8ClampedArray").New(len(img.Pix))
 	js.CopyBytesToJS(data, img.Pix)
-	return map[string]any{"width": img.Rect.Dx(), "height": img.Rect.Dy(), "data": data}
+	next := 0
+	if t := renderer.Next(); !t.IsZero() {
+		next = int(t.UnixMilli())
+	}
+	return map[string]any{"width": img.Rect.Dx(), "height": img.Rect.Dy(), "data": data, "next": next}
+}
+
+func fitImage(_ js.Value, args []js.Value) any {
+	if len(args) != 4 {
+		return marshal(map[string]any{"error": "fitImage needs bytes, width, height and maxBytes"})
+	}
+	b := make([]byte, args[0].Length())
+	js.CopyBytesToGo(b, args[0])
+	p, err := fit.Fit(b, fit.Box{Width: args[1].Int(), Height: args[2].Int(), Bytes: args[3].Int()})
+	if err != nil {
+		return marshal(map[string]any{"error": err.Error()})
+	}
+	return marshal(map[string]any{
+		"data": base64.StdEncoding.EncodeToString(p.Data), "width": p.Width, "height": p.Height,
+		"frames": p.Frames, "dropped": p.Dropped, "changed": p.Changed,
+	})
+}
+
+func imageInfo(_ js.Value, args []js.Value) any {
+	b, err := base64.StdEncoding.DecodeString(args[0].String())
+	if err != nil {
+		return marshal(map[string]any{"error": "not base64"})
+	}
+	w, h, frames, err := fit.Info(b)
+	if err != nil {
+		return marshal(map[string]any{"error": err.Error()})
+	}
+	return marshal(map[string]any{"width": w, "height": h, "frames": frames})
 }
 
 func iconPath(_ js.Value, args []js.Value) any {

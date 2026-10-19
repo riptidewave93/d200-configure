@@ -31,8 +31,9 @@ the config on your PC.
 
 ## Status
 
-Early. Editing keys, pages and actions, icons and emoji, live key previews, and reading and saving
-the device's config work. Adding custom images and fonts is not done yet.
+Early. Editing keys, pages and actions, icons, emoji and pictures (animated GIFs too), live key
+previews, and reading and saving the device's config work, tested on a device. Adding custom fonts
+is not done yet.
 
 ## Docs
 

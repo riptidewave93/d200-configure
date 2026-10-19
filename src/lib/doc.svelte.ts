@@ -3,6 +3,7 @@
 import type { Action, Button, Config } from "./config";
 import type { Deck } from "./deck";
 import { pageTree, pathTo, type PageTree } from "./pages";
+import { usedImages } from "./pictures";
 
 export class Doc {
   config = $state<Config | null>(null);
@@ -41,12 +42,18 @@ export class Doc {
     if (this.saved) this.load(JSON.parse(this.saved));
   }
 
-  // embedIcons gives the config exactly the icons its keys can show, from
-  // its own and the catalog, and returns the names found in neither.
-  embedIcons(deck: Deck): string[] {
+  // tidy gives the config exactly the icons its keys can show, from its own
+  // and the catalog, and drops the images no key shows: the device has
+  // little room. It returns the icon names found in neither.
+  tidy(deck: Deck): string[] {
     const { icons, unknown } = deck.embed(this.c);
     if (Object.keys(icons).length) this.c.icons = icons;
     else delete this.c.icons;
+    if (this.c.images) {
+      const used = usedImages(this.c);
+      for (const id of Object.keys(this.c.images)) if (!used.has(id)) delete this.c.images[id];
+      if (!Object.keys(this.c.images).length) delete this.c.images;
+    }
     return unknown;
   }
 

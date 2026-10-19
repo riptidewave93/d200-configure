@@ -20,7 +20,7 @@ Repos/
 | `make` | `check`, `test` and `build` |
 | `make dev` | Dev server at http://localhost:5173/d200-configure/, reloads on save |
 | `make check` | Type checks (TypeScript and Svelte) |
-| `make test` | Unit tests |
+| `make test` | Unit tests: the site's, and the Go ones in `wasm/fit` |
 | `make build` | The site, into `dist/` |
 | `make wasm` | Just the WebAssembly part and the Go fonts, into `src/wasm/` (the targets above run it) |
 | `make clean` | Removes `dist/`, `node_modules/` and `.cache/` |
@@ -58,10 +58,12 @@ WebHID works on `localhost`, so `make dev` and Chrome are enough.
 | `src/lib/draw.ts` | Draws keys with it |
 | `src/lib/models.ts` | The kinds of device: their keys and face |
 | `src/lib/emoji.ts` | Emoji: the list, search, and drawing them into PNGs |
+| `src/lib/pictures.ts` | Pictures from files: reading, naming, and the animation budget |
 | `src/lib/fakedevice.ts` | The in-memory device, for tests and `?fake` |
 | `wasm/main.go` | The WebAssembly part: d200-deck's `deck`, `icons` and `render` packages for the browser |
+| `wasm/fit/` | Fitting pictures to the device's limits, GIFs included |
 
-Tests sit next to the code as `*.test.ts`.
+Tests sit next to the code, as `*.test.ts` and `*_test.go`.
 
 ## Updating d200-deck
 
