@@ -16,6 +16,15 @@
 
   let f = $derived(face(model));
 
+  // Double-clicking a key does what pressing it on the device does to pages.
+  function follow(i: number) {
+    if (!doc) return;
+    const a = doc.button(i)?.action;
+    if (a?.type === "page" && a.page && a.page in (doc.config?.pages ?? {})) doc.openPage(a.page);
+    else if (a?.type === "back" && doc.path.length > 1) doc.openPage(doc.path[doc.path.length - 2]);
+    else if (a?.type === "home" && doc.config) doc.openPage(doc.config.home);
+  }
+
   // percentages of a box, so the face scales with the page
   const pct = (v: number, of: number) => `${(v / of) * 100}%`;
   const radius = (r: number, w: number, h: number) => `${pct(r, w)} / ${pct(r, h)}`;
@@ -26,6 +35,8 @@
   style:aspect-ratio="{f.width} / {f.height}"
   style:border-radius={radius(f.radius, f.width, f.height)}
   style:background-color={f.colour}
+  onclick={(e) => e.target === e.currentTarget && doc && (doc.key = null)}
+  role="presentation"
 >
   {#each f.keys as k, i (i)}
     {@const button = doc?.button(i)}
@@ -39,7 +50,8 @@
       style:width={pct(k.cap.w, f.width)}
       style:height={pct(k.cap.h, f.height)}
       style:border-radius={radius(model.cap.radius, k.cap.w, k.cap.h)}
-      onclick={() => doc && (doc.key = doc.key === i ? null : i)}
+      onclick={() => doc && (doc.key = i)}
+      ondblclick={() => follow(i)}
       aria-label={button?.label ? `Key ${i + 1}: ${button.label}` : `Key ${i + 1}`}
       aria-pressed={doc?.key === i}
     >

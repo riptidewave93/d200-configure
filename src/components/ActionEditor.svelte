@@ -32,6 +32,11 @@
   let args = $derived(opArgs[`${action.app}.${action.op}`] ?? []);
   let hostApp = $derived(device.host?.apps?.find((a) => a.name === action.app));
 
+  // a new page being named, from the page list's "New page…"
+  const NEW = "\u0000new";
+  let newPage = $state<string | null>(null);
+  let newPageError = $derived(newPage === null ? "" : doc.pageNameError(newPage));
+
   function setType(t: string) {
     const next: Action = t ? { type: t } : {};
     if (t === "app") {
@@ -127,9 +132,48 @@
     >+ Step</button
   >
 {:else if action.type === "page"}
-  <select bind:value={action.page} aria-label="Page">
-    {#each doc.pages as p (p)}<option value={p}>{p}</option>{/each}
-  </select>
+  {#if newPage === null}
+    <div class="row">
+      <select
+        class="grow"
+        value={action.page ?? ""}
+        onchange={(e) => {
+          if (e.currentTarget.value === NEW) {
+            newPage = doc.button(doc.key ?? -1)?.label?.replace(/\n/g, " ").trim() || doc.newPageName();
+            e.currentTarget.value = action.page ?? "";
+          } else {
+            action.page = e.currentTarget.value;
+          }
+        }}
+        aria-label="Page"
+      >
+        {#if !action.page}<option value="" disabled>Pick a page</option>{/if}
+        {#each doc.pages as p (p)}<option value={p}>{p}</option>{/each}
+        <option value={NEW}>New page…</option>
+      </select>
+      {#if action.page && action.page in (doc.config?.pages ?? {})}
+        <button type="button" class="plain" onclick={() => doc.openPage(action.page!)}>Open ›</button>
+      {/if}
+    </div>
+  {:else}
+    <form
+      class="row"
+      onsubmit={(e) => {
+        e.preventDefault();
+        if (newPageError) return;
+        doc.addFolder(newPage!);
+        action.page = newPage!;
+        newPage = null;
+      }}
+    >
+      <!-- svelte-ignore a11y_autofocus -->
+      <input class="grow" bind:value={newPage} aria-label="New page name" autofocus />
+      <button disabled={!!newPageError}>Add page</button>
+      <button type="button" class="quiet" onclick={() => (newPage = null)}>Cancel</button>
+    </form>
+    {#if newPageError && newPage}<p class="bad small">{newPageError}</p>{/if}
+    <p class="muted small">It gets a Back key, so you can leave it on the device.</p>
+  {/if}
 {:else if action.type === "open-url"}
   <label>
     <span>Web address</span>

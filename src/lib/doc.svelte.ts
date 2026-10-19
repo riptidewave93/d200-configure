@@ -1,6 +1,7 @@
 // The config being edited, and what's selected in it.
 
 import type { Action, Button, Config } from "./config";
+import { pageTree, pathTo, type PageTree } from "./pages";
 
 export class Doc {
   config = $state<Config | null>(null);
@@ -8,8 +9,16 @@ export class Doc {
   saved = $state("");
   page = $state("");
   key = $state<number | null>(null);
+  // set when a new page wants its name typed
+  naming = $state(false);
 
   dirty = $derived(this.config !== null && JSON.stringify(this.config) !== this.saved);
+
+  tree = $derived<PageTree>(
+    this.config ? pageTree(this.config) : { root: null, orphans: [], parent: new Map() },
+  );
+  // the pages from home to the one shown
+  path = $derived(pathTo(this.tree, this.page));
 
   // loads counts configs loaded, so drawing can tell a new config's images
   // and fonts from the last one's
@@ -60,10 +69,26 @@ export class Doc {
     return "";
   }
 
-  addPage(name: string) {
-    this.c.pages[name] = { keys: {} };
+  openPage(name: string) {
     this.page = name;
     this.key = null;
+  }
+
+  // newPageName is a free name for a new page: "page 1", "page 2", ...
+  newPageName(): string {
+    for (let n = 1; ; n++) if (!(`page ${n}` in this.c.pages)) return `page ${n}`;
+  }
+
+  addPage(name: string) {
+    this.c.pages[name] = { keys: {} };
+    this.openPage(name);
+    this.naming = true;
+  }
+
+  // addFolder adds a page with a Back key on its first key, so it can be
+  // left on the device, without going to it.
+  addFolder(name: string) {
+    this.c.pages[name] = { keys: { 0: { icon: "back", label: "Back", action: { type: "back" } } } };
   }
 
   // renamePage renames a page and the keys that open it.

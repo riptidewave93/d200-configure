@@ -3,7 +3,9 @@
   import DevicePanel from "./components/DevicePanel.svelte";
   import Face from "./components/Face.svelte";
   import KeyEditor from "./components/KeyEditor.svelte";
-  import PageBar from "./components/PageBar.svelte";
+  import Breadcrumb from "./components/Breadcrumb.svelte";
+  import PagePanel from "./components/PagePanel.svelte";
+  import PageTree from "./components/PageTree.svelte";
   import { MaxConfigBytes, parse, type Config } from "./lib/config";
   import { setApp } from "./lib/context";
   import { load, type Deck } from "./lib/deck";
@@ -27,6 +29,34 @@
 
   const ruleURL = "https://github.com/riptidewave93/d200-deck/blob/main/contrib/linux/70-d200-deck.rules";
   const warning = browserWarning();
+  // the warning can be put away, and stays away in this browser
+  const dismissedKey = "browser-warning-dismissed";
+  let showWarning = $state(!!warning && !stored(dismissedKey));
+  let fileMenu = $state(false);
+
+  function stored(key: string): boolean {
+    try {
+      return localStorage.getItem(key) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function dismissWarning() {
+    showWarning = false;
+    try {
+      localStorage.setItem(dismissedKey, "1");
+    } catch {
+      // private windows may refuse; it shows again next time
+    }
+  }
+
+  function escape(e: KeyboardEvent) {
+    if (e.key !== "Escape") return;
+    showDevice = fileMenu = false;
+    const t = e.target as HTMLElement;
+    if (!t.closest("input, select, textarea")) doc.key = null;
+  }
   const linux = navigator.userAgent.includes("Linux") && !navigator.userAgent.includes("Android");
 
   let connected = $derived(device.state === "ready" || device.state === "busy");
@@ -159,14 +189,39 @@
   });
 </script>
 
-<svelte:window onkeydown={(e) => e.key === "Escape" && (showDevice = false)} />
+<svelte:window onkeydown={escape} />
 
 <header class="top">
   <h1>Device Setup</h1>
   <span class="grow"></span>
   {#if doc.config}
-    <button class="quiet" onclick={() => fileInput.click()}>Open file</button>
-    <button class="quiet" onclick={saveFile}>Save file</button>
+    <div class="save row">
+      {#if device.progress}
+        <span class="muted small">{working}…</span>
+        <progress max={device.progress.total || 1} value={device.progress.done}></progress>
+      {:else if notice}
+        <span class="muted small" role="status">{notice}</span>
+      {:else if doc.dirty}
+        <span class="muted small">Unsaved changes</span>
+        {#if doc.saved}<button class="quiet" onclick={() => doc.revert()}>Undo</button>{/if}
+      {/if}
+      {#if connected}
+        <button onclick={() => save()} disabled={!doc.dirty || !!working}>Save to device</button>
+      {/if}
+    </div>
+    <div class="files">
+      <button class="quiet" onclick={() => fileInput.click()}>Open file</button>
+      <button class={connected ? "quiet" : ""} onclick={saveFile}>Save file</button>
+    </div>
+    <div class="files-more">
+      <button class="quiet" onclick={() => (fileMenu = !fileMenu)} aria-expanded={fileMenu} aria-label="File">⋯</button>
+      {#if fileMenu}
+        <div class="popover menu">
+          <button class="quiet" onclick={() => ((fileMenu = false), fileInput.click())}>Open file</button>
+          <button class="quiet" onclick={() => ((fileMenu = false), saveFile())}>Save file</button>
+        </div>
+      {/if}
+    </div>
   {/if}
   <div class="device-menu">
     {#if connected}
@@ -176,17 +231,17 @@
         aria-expanded={showDevice}
         aria-haspopup="dialog"
       >
-        <span class="dot"></span>{status}
+        <span class="dot"></span><span class="status-text">{status}</span>
       </button>
     {:else if device.state !== "none"}
-      <span class="status"><span class="dot busy"></span>{status}</span>
+      <span class="status"><span class="dot busy"></span><span class="status-text">{status}</span></span>
     {:else if supported() && doc.config}
       <button onclick={() => device.choose()}>Connect</button>
     {:else}
-      <span class="status"><span class="dot"></span>{status}</span>
+      <span class="status"><span class="dot"></span><span class="status-text">{status}</span></span>
     {/if}
     {#if showDevice && connected}
-      <div class="popover" role="dialog" aria-label="Device">
+      <div class="popover device" role="dialog" aria-label="Device">
         <DevicePanel />
         <button class="quiet small" onclick={() => device.disconnect()}>Disconnect</button>
       </div>
@@ -195,14 +250,17 @@
 </header>
 
 <main>
-  {#if warning}<p class="warn">{warning}</p>{/if}
+  {#if showWarning}
+    <p class="warn row line">
+      <span class="grow">{warning}</span>
+      <button class="quiet small" onclick={dismissWarning} aria-label="Dismiss">✕</button>
+    </p>
+  {/if}
   {#if device.error}<p class="warn bad-line">{device.error}</p>{/if}
   {#if error}<p class="warn bad-line">{error}</p>{/if}
-
   {#if device.asking}
     <p class="asking" role="status">Press <strong>{device.asking}</strong> on the device to confirm.</p>
   {/if}
-
   {#if conflict}
     <div class="warn row">
       <span class="grow">The device's config changed since it was read here.</span>
@@ -244,33 +302,30 @@
       {/if}
     </section>
   {:else}
-    <div class="toolbar">
-      <PageBar {doc} />
-      <div class="save row">
-        {#if device.progress}
-          <span class="muted small">{working}…</span>
-          <progress max={device.progress.total || 1} value={device.progress.done}></progress>
-        {:else if notice}
-          <span class="muted small" role="status">{notice}</span>
-        {:else if doc.dirty}
-          <span class="muted small">Unsaved changes</span>
-          {#if doc.saved}<button class="quiet" onclick={() => doc.revert()}>Undo</button>{/if}
+    <div class="editor">
+      <aside class="rail">
+        <PageTree {doc} />
+      </aside>
+      <div class="middle">
+        <Breadcrumb {doc} />
+        <div class="face">
+          {#if deck}<Face {model} {doc} down={device.down} />{/if}
+        </div>
+        {#if doc.key === null}
+          <p class="muted hint">
+            {#if Object.keys(doc.config.pages[doc.page]?.keys ?? {}).length}
+              Pick a key to change it{connected ? ", or press it on the device" : ""}.
+            {:else}
+              Nothing here yet. Pick a key to set it up.
+            {/if}
+          </p>
         {/if}
-        {#if connected}
-          <button onclick={() => save()} disabled={!doc.dirty || !!working}>Save to device</button>
-        {/if}
-      </div>
-    </div>
-
-    <div class="work">
-      <div class="face">
-        {#if deck}<Face {model} {doc} down={device.down} />{/if}
       </div>
       <div class="side">
         {#if doc.key !== null}
           {#key `${doc.page}/${doc.key}`}<KeyEditor key={doc.key} />{/key}
         {:else}
-          <p class="muted hint">Pick a key to change it{connected ? ", or press it on the device" : ""}.</p>
+          {#key doc.page}<PagePanel {doc} />{/key}
         {/if}
       </div>
     </div>
@@ -293,16 +348,28 @@
   .top {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
+    gap: 12px;
+    padding: 10px 24px;
     border-bottom: 1px solid var(--line);
+    min-height: 58px;
   }
   h1 {
     font-size: 16px;
+    white-space: nowrap;
+  }
+  .save {
+    flex-wrap: nowrap;
+  }
+  .files {
+    display: flex;
+    gap: 2px;
+  }
+  .files-more {
+    display: none;
+    position: relative;
   }
   .device-menu {
     position: relative;
-    margin-left: 8px;
   }
   .status {
     display: inline-flex;
@@ -341,24 +408,38 @@
     position: absolute;
     right: 0;
     top: calc(100% + 8px);
-    width: min(380px, calc(100vw - 32px));
-    padding: 18px 20px 10px;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 14px;
     box-shadow: 0 16px 40px -12px var(--shadow);
     z-index: 10;
   }
+  .popover.device {
+    width: min(380px, calc(100vw - 32px));
+    padding: 18px 20px 10px;
+  }
+  .popover.menu {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 6px 10px;
+  }
   main {
-    max-width: 1280px;
+    max-width: 1480px;
     margin: 0 auto;
     padding: 20px 24px 48px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
+  }
+  .line {
+    flex-wrap: nowrap;
+    margin: 0;
+    padding: 6px 8px 6px 14px;
   }
   .bad-line {
     border-color: var(--bad);
+    margin: 0;
   }
   .asking {
     margin: 0;
@@ -387,49 +468,78 @@
   .note {
     margin-top: 20px;
   }
-  .toolbar {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-  .save {
-    flex-wrap: nowrap;
-  }
-  .work {
-    display: flex;
+  /* page tree | device face | key or page panel */
+  .editor {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr) 360px;
     gap: 32px;
-    align-items: flex-start;
-    flex-wrap: wrap;
+    align-items: start;
+  }
+  .rail {
+    position: sticky;
+    top: 16px;
+    padding-right: 16px;
+    border-right: 1px solid var(--line);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
   }
   .face {
-    flex: 1 1 520px;
-    padding: 8px 0 24px;
-  }
-  .side {
-    flex: 0 1 380px;
-    min-width: 300px;
+    margin-top: 12px;
   }
   .hint {
-    padding: 18px 4px;
+    margin: 18px 0 0;
+    text-align: center;
   }
   progress {
-    width: 160px;
+    width: 140px;
     accent-color: var(--accent);
   }
   .start progress {
     width: 100%;
   }
-  @media (max-width: 720px) {
+  /* the tree moves into the breadcrumb */
+  @media (max-width: 1100px) {
+    .editor {
+      grid-template-columns: minmax(0, 1fr) 340px;
+    }
+    .rail {
+      display: none;
+    }
+  }
+  /* one column: the face stays in view while the panel scrolls under it */
+  @media (max-width: 760px) {
     .top,
     main {
       padding-left: 16px;
       padding-right: 16px;
     }
-    .side {
-      min-width: 0;
-      flex-basis: 100%;
+    .files {
+      display: none;
+    }
+    .files-more {
+      display: block;
+    }
+    .status-text,
+    .save .muted {
+      display: none;
+    }
+    .editor {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+    }
+    .middle {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg);
+      padding-bottom: 8px;
+    }
+    .face {
+      max-width: calc(35vh * 1.65);
+      margin: 8px auto 0;
+    }
+    .hint {
+      display: none;
     }
   }
 </style>

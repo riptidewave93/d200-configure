@@ -48,12 +48,13 @@ WebHID works on `localhost`, so `make dev` and Chrome are enough.
 | Path | What |
 |---|---|
 | `src/App.svelte` | The page: connecting, saving, files |
-| `src/components/` | The editor's parts: the device face, page tabs, key editor, action editor, device panel |
+| `src/components/` | The editor's parts: page tree, breadcrumb, device face, key and page panels, action editor, device panel |
 | `src/lib/proto.ts` | The USB protocol's framing and constants (d200-deck `proto/raw.go`) |
 | `src/lib/conn.ts` | A connection: requests, replies, events, config read and write (`proto/client.go`, `proto/config.go`) |
 | `src/lib/webhid.ts` | Opening the device in the browser |
 | `src/lib/device.svelte.ts` | The connected device, reconnecting after it re-plugs |
 | `src/lib/doc.svelte.ts` | The config being edited: pages, keys, unsaved changes |
+| `src/lib/pages.ts` | The pages as a tree, from the keys that open them |
 | `src/lib/deck.ts` | Loads the WebAssembly part |
 | `src/lib/draw.ts` | Draws keys with it |
 | `src/lib/models.ts` | The kinds of device: their keys and face |

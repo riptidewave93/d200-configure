@@ -54,6 +54,22 @@ describe("Doc", () => {
     expect(d.config!.pages.main).toBeDefined();
   });
 
+  it("adds a folder with a Back key", () => {
+    const d = new Doc();
+    d.load(config());
+    expect(d.newPageName()).toBe("page 1");
+    d.addFolder("games");
+    expect(d.config!.pages.games.keys[0].action).toEqual({ type: "back" });
+    expect(d.page).toBe("main");
+  });
+
+  it("follows the tree for the path", () => {
+    const d = new Doc();
+    d.load(config());
+    d.openPage("media");
+    expect(d.path).toEqual(["main", "media"]);
+  });
+
   it("checks new page names", () => {
     const d = new Doc();
     d.load(config());

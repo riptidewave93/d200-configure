@@ -74,6 +74,32 @@ The config is one JSON file, images and fonts included, up to 2 MiB. It moves in
 
 After a re-plug the site compares revs and reads the config again only if it changed.
 
+## Layout
+
+```
+┌ Device Setup ─────────── Unsaved changes  Undo  [Save to device]  Open file  Save file  (● Connected) ┐
+├ Pages ──────┬ main › discord ─────────────────────┬ Key 6 / Page ──────────┤
+│ ⌂ main      │  ┌───────────────────────────────┐  │ preview                │
+│   browser   │  │         the device face       │  │ Look                   │
+│   discord   │  └───────────────────────────────┘  │ When pressed           │
+│ + Page      │  Pick a key to change it.           │                        │
+└─────────────┴─────────────────────────────────────┴────────────────────────┘
+```
+
+- **Header:** what applies to the whole config (Save to device, files) and the device (the status
+  pill opens its details and settings).
+- **Left, the page tree** (`PageTree`, from `src/lib/pages.ts`). The config keeps pages flat, so
+  the tree comes from which keys open which page, walking out from the home page. A page opened
+  from several places shows once, where it's found in the fewest presses. Keys that go back up, or
+  loop, add nothing. Pages no key opens are listed under "Not opened by any key".
+- **Middle, the device face**, with a breadcrumb (home › folder › page) above it.
+- **Right, one panel:** the selected key (`KeyEditor`), or with no key selected, the page
+  (`PagePanel`): its name, the keys that open it, "Show at start" and "Delete page". Escape or a
+  click on the device's body goes back to the page.
+- **Narrower windows:** under 1100 px the tree moves into a menu on the breadcrumb; under 760 px
+  it's one column, the face stays in view while the panel scrolls, and the file buttons go in a
+  `⋯` menu.
+
 ## Editing
 
 - The config is edited in place, as the JSON objects it was read as. Fields the site doesn't know
@@ -82,6 +108,10 @@ After a re-plug the site compares revs and reads the config again only if it cha
   as one written by hand.
 - "Unsaved changes" means the config's JSON differs from the one last read or saved.
 - Renaming a page renames the keys that open it. Deleting a page clears them.
+- "New page…" in a key's page list makes the page with a Back key already on it, so it can be left
+  on the device, and points the key at it.
+- Double-clicking a key that opens a page, goes back or goes home does that on the page, as
+  pressing it on the device would.
 - Key combos can be typed (`ctrl + shift + m`) or recorded by pressing them.
 - **Files:** **Open file** and **Save file** read and write `config.json`, for backups and for
   editing without a device. A file opened while connected counts as unsaved until saved to the device.
