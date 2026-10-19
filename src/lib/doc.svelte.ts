@@ -1,6 +1,7 @@
 // The config being edited, and what's selected in it.
 
 import type { Action, Button, Config } from "./config";
+import type { Deck } from "./deck";
 import { pageTree, pathTo, type PageTree } from "./pages";
 
 export class Doc {
@@ -38,6 +39,15 @@ export class Doc {
 
   revert() {
     if (this.saved) this.load(JSON.parse(this.saved));
+  }
+
+  // embedIcons gives the config exactly the icons its keys can show, from
+  // its own and the catalog, and returns the names found in neither.
+  embedIcons(deck: Deck): string[] {
+    const { icons, unknown } = deck.embed(this.c);
+    if (Object.keys(icons).length) this.c.icons = icons;
+    else delete this.c.icons;
+    return unknown;
   }
 
   private get c(): Config {

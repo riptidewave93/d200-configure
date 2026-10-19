@@ -1,6 +1,7 @@
 <!-- How a key looks: icon or image, label, font and colours. -->
 <script lang="ts">
-  import type { Look } from "../lib/config";
+  import { MaxIconBytes, type Look } from "../lib/config";
+  import { emojiID, emojiPNG, type Emoji } from "../lib/emoji";
   import { app } from "../lib/context";
   import { set } from "../lib/edit";
   import ColorField from "./ColorField.svelte";
@@ -18,6 +19,26 @@
     set(look, "icon", v);
     if (v) delete look.image;
   }
+  // An emoji goes in the config's icons as a small PNG, once, however many
+  // keys use it; saving drops it again when no key does.
+  let emojiError = $state("");
+  async function setEmoji(e: Emoji) {
+    emojiError = "";
+    const id = emojiID(e.hex);
+    const icons = (doc.config!.icons ??= {});
+    if (!icons[id]?.png) {
+      try {
+        let png = await emojiPNG(e.char);
+        if (atob(png).length > MaxIconBytes) png = await emojiPNG(e.char, 96);
+        icons[id] = { png };
+      } catch {
+        emojiError = "This browser couldn't draw that emoji.";
+        return;
+      }
+    }
+    setIcon(id);
+  }
+
   function setImage(v: string) {
     set(look, "image", v);
     if (v) delete look.icon;
@@ -32,7 +53,8 @@
   });
 </script>
 
-<IconField value={look.icon} onchange={setIcon} />
+<IconField value={look.icon} onchange={setIcon} onemoji={setEmoji} />
+{#if emojiError}<p class="bad small">{emojiError}</p>{/if}
 {#if images.length}
   <label>
     <span>Or image</span>

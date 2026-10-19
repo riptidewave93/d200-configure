@@ -8,6 +8,7 @@
     "@tsconfig/svelte": "5.0.8",
     "@types/node": "24.19.2",
     "@types/w3c-web-hid": "1.0.7",
+    "emojibase-data": "18.0.0",
     "svelte": "5.57.2",
     "svelte-check": "4.7.7",
     "typescript": "6.0.3",

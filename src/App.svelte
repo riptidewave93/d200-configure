@@ -106,6 +106,14 @@
 
   async function save(force = false) {
     error = notice = "";
+    if (deck) {
+      const unknown = doc.embedIcons(deck);
+      if (unknown.length) {
+        const names = unknown.map((n) => `"${n}"`).join(", ");
+        error = `Can't save: no icon called ${names}.`;
+        return;
+      }
+    }
     const json = JSON.stringify(doc.config);
     const why = deck?.validate(json);
     if (why) {
@@ -152,6 +160,7 @@
   }
 
   function saveFile() {
+    if (deck) doc.embedIcons(deck); // so the file works on a device as it is
     const blob = new Blob([JSON.stringify(doc.config, null, 2) + "\n"], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);

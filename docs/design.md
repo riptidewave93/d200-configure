@@ -116,6 +116,24 @@ After a re-plug the site compares revs and reads the config again only if it cha
 - **Files:** **Open file** and **Save file** read and write `config.json`, for backups and for
   editing without a device. A file opened while connected counts as unsaved until saved to the device.
 
+## Icons and emoji
+
+The device keeps no icon catalog: a config carries the icons its keys show, in `icons` (d200-deck's
+[config.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/config.md)). The catalog
+(Material Symbols and a few of d200-deck's own) lives in the site, through d200-deck's `icons`
+package.
+
+- **Picking** an icon only sets the key's `icon` name.
+- **Saving** (to the device or a file) runs `icons.Embed`: it copies in the catalog icons the keys
+  use, including Discord's built-in looks, and drops the ones no key uses. A name that's in neither
+  the config nor the catalog stops the save, with its name.
+- **Previews** embed into a copy of the config before drawing, so they match the device.
+- **Emoji:** the device has no emoji font, so a picked emoji is drawn here, with the computer's own
+  emoji font, into a 120 px PNG (about 7–15 KB) and kept as an icon named `emoji-<code points>`,
+  e.g. `emoji-1f3ae`. It's drawn at icon size, like other icons. Each emoji is kept once however
+  many keys use it, and dropped when none does. The names and search words come from
+  [emojibase](https://emojibase.dev/) (MIT), loaded only when the emoji picker opens.
+
 ## The device code in the browser
 
 `wasm/main.go` builds d200-deck's `deck` and `render` packages to WebAssembly. It gives the page:
@@ -123,9 +141,10 @@ After a re-plug the site compares revs and reads the config again only if it cha
 | Function | From | Used for |
 |---|---|---|
 | `validate` | `deck.Parse` | Checking a config before saving or opening it |
-| `renderKey`, `setAssets` | `render.Renderer` | Key previews, pixel for pixel as on the device |
+| `renderKey`, `setAssets` | `render.Renderer`, `icons.Embed` | Key previews, pixel for pixel as on the device |
 | `layout` | `render.Key`, `render.Width/Height` | Where the keys sit on the face |
-| `iconNames`, `iconPath` | `render.IconNames`, `render.IconPath` | The icon picker |
+| `iconNames`, `iconPath` | `icons.Names`, `icons.Get` | The icon picker |
+| `embed` | `icons.Embed` | Copying the icons keys use into the config before saving |
 | `names` | `deck.Keys`, `deck.UsageNames`, ... | Key names, media keys, fonts, app ops |
 | `defaultConfig` | `deck.DefaultConfig` | The fake device |
 

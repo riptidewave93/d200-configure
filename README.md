@@ -31,8 +31,8 @@ the config on your PC.
 
 ## Status
 
-Early. Editing keys, pages and actions, live key previews, and reading and saving the device's
-config work. Adding custom images and fonts is not done yet.
+Early. Editing keys, pages and actions, icons and emoji, live key previews, and reading and saving
+the device's config work. Adding custom images and fonts is not done yet.
 
 ## Docs
 
@@ -49,3 +49,4 @@ and the [USB protocol](https://github.com/riptidewave93/d200-deck/blob/main/docs
 GPL-3.0-or-later. The site includes d200-deck's Go code, built to WebAssembly; its third-party parts
 are listed in d200-deck's [NOTICE.md](https://github.com/riptidewave93/d200-deck/blob/main/NOTICE.md).
 The page uses the [Go fonts](https://go.dev/blog/go-fonts) (BSD-3-Clause), from that same code.
+Emoji names and search words are from [emojibase](https://emojibase.dev/) (MIT).

@@ -3,7 +3,7 @@
 
 import "../wasm/wasm_exec.js";
 import wasmURL from "../wasm/deck.wasm?url";
-import type { Button, Config } from "./config";
+import type { Button, Config, IconEntry } from "./config";
 import type { Layout } from "./layout";
 
 export interface Names {
@@ -25,14 +25,18 @@ export interface Pixels {
 export interface Deck {
   // validate is "" for a valid config, else why it isn't
   validate(config: Config | string): string;
-  // setAssets gives the config whose images and fonts keys use
-  setAssets(config: Config): void;
+  // embed works out the icons a config's keys can show: those it has, and
+  // the rest from the catalog. unknown are names found in neither.
+  embed(config: Config): { icons: Record<string, IconEntry>; unknown: string[] };
+  // setAssets gives the config keys are drawn from (its icons, images and
+  // fonts); it returns the icon names it lacks
+  setAssets(config: Config): string[];
   // renderKey draws key i as the device does; on draws its look while on
   renderKey(i: number, b: Button, on?: boolean): Pixels | null;
   layout: Layout;
   names: Names;
   icons: string[];
-  hasIcon(name: string): boolean;
+  hasIcon(name: string): boolean; // in the catalog
   iconPath(name: string): IconPath | null;
   defaultConfig(): Config;
 }
@@ -44,6 +48,7 @@ export interface IconPath {
 
 interface Exports {
   validate(json: string): string;
+  embed(json: string): string;
   setAssets(json: string): string;
   renderKey(i: number, json: string, on: boolean): Pixels | null;
   layout: string;
@@ -80,9 +85,15 @@ async function start(code?: BufferSource): Promise<Deck> {
   const iconSet = new Set(icons);
   return {
     validate: (c) => x.validate(typeof c === "string" ? c : JSON.stringify(c)),
+    embed: (c) => {
+      const r = JSON.parse(x.embed(JSON.stringify(c)));
+      if (r.error) throw new Error(r.error);
+      return { icons: r.icons ?? {}, unknown: r.unknown };
+    },
     setAssets: (c) => {
-      const err = x.setAssets(JSON.stringify({ version: c.version, images: c.images, fonts: c.fonts }));
-      if (err) throw new Error(err);
+      const r = JSON.parse(x.setAssets(JSON.stringify(c)));
+      if (r.error) throw new Error(r.error);
+      return r.unknown;
     },
     renderKey: (i, b, on = false) => x.renderKey(i, JSON.stringify(b), on),
     layout: JSON.parse(x.layout),

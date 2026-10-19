@@ -3,11 +3,14 @@
 // as the device draws them. It sets a global "deck" object with:
 //
 //	validate(json) -> "" or why the config isn't valid
-//	setAssets(json) -> "" or an error: the config whose images and fonts keys use
+//	embed(json) -> JSON {icons, unknown}: the icons the config's keys can show, from
+//	  those it has and the catalog, and the names found in neither
+//	setAssets(json) -> JSON: the config keys are drawn from (its icons embedded,
+//	  as embed does), and the icon names it lacks
 //	renderKey(i, buttonJSON, on) -> {width, height, data: RGBA pixels}, or null
 //	layout -> JSON: {width, height, keys: [{x, y, w, h}]}, the key windows on the screen
-//	iconNames -> JSON: every built-in icon name, sorted
-//	iconPath(name) -> {d, viewBox}: an icon as SVG path data (nonzero fill), or null
+//	iconNames -> JSON: every icon in the catalog, sorted
+//	iconPath(name) -> {d, viewBox}: a catalog icon as SVG path data (nonzero fill), or null
 //	names -> JSON: the key, media key, system and font names, and app ops
 //	defaultConfig -> JSON: the config a device uses without one
 package main
@@ -19,6 +22,7 @@ import (
 	"syscall/js"
 
 	"github.com/riptidewave93/d200-deck/deck"
+	"github.com/riptidewave93/d200-deck/icons"
 	"github.com/riptidewave93/d200-deck/render"
 )
 
@@ -27,10 +31,11 @@ var renderer = render.New(&deck.Config{})
 func main() {
 	js.Global().Set("deck", map[string]any{
 		"validate":      js.FuncOf(validate),
+		"embed":         js.FuncOf(embed),
 		"setAssets":     js.FuncOf(setAssets),
 		"renderKey":     js.FuncOf(renderKey),
 		"layout":        layout(),
-		"iconNames":     marshal(render.IconNames()),
+		"iconNames":     marshal(icons.Names()),
 		"iconPath":      js.FuncOf(iconPath),
 		"names":         names(),
 		"defaultConfig": marshal(deck.DefaultConfig()),
@@ -48,15 +53,37 @@ func validate(_ js.Value, args []js.Value) any {
 	return ""
 }
 
-// setAssets takes a config without checking it: keys draw while it's being
-// edited, valid or not. A new config drops the decoded images and fonts.
-func setAssets(_ js.Value, args []js.Value) any {
+// embedded reads a config without checking it (it may be mid-edit) and
+// gives it the icons its keys can show.
+func embedded(s string) (*deck.Config, []string, error) {
 	var c deck.Config
-	if err := json.Unmarshal([]byte(args[0].String()), &c); err != nil {
-		return err.Error()
+	if err := json.Unmarshal([]byte(s), &c); err != nil {
+		return nil, nil, err
 	}
-	renderer.SetConfig(&c)
-	return ""
+	unknown := icons.Embed(&c)
+	if unknown == nil {
+		unknown = []string{}
+	}
+	return &c, unknown, nil
+}
+
+func embed(_ js.Value, args []js.Value) any {
+	c, unknown, err := embedded(args[0].String())
+	if err != nil {
+		return marshal(map[string]any{"error": err.Error()})
+	}
+	return marshal(map[string]any{"icons": c.Icons, "unknown": unknown})
+}
+
+// setAssets switches drawing to a config, which drops the decoded images
+// and fonts.
+func setAssets(_ js.Value, args []js.Value) any {
+	c, unknown, err := embedded(args[0].String())
+	if err != nil {
+		return marshal(map[string]any{"error": err.Error()})
+	}
+	renderer.SetConfig(c)
+	return marshal(map[string]any{"unknown": unknown})
 }
 
 // button reads a button for drawing. An action that doesn't parse (say, a
@@ -93,11 +120,11 @@ func iconPath(_ js.Value, args []js.Value) any {
 	if len(args) != 1 {
 		return nil
 	}
-	d, viewBox, ok := render.IconPath(args[0].String())
-	if !ok {
+	icon, ok := icons.Get(args[0].String())
+	if !ok || icon.D == "" {
 		return nil
 	}
-	return map[string]any{"d": d, "viewBox": viewBox}
+	return map[string]any{"d": icon.D, "viewBox": icon.ViewBox}
 }
 
 func layout() string {

@@ -58,8 +58,9 @@ WebHID works on `localhost`, so `make dev` and Chrome are enough.
 | `src/lib/deck.ts` | Loads the WebAssembly part |
 | `src/lib/draw.ts` | Draws keys with it |
 | `src/lib/models.ts` | The kinds of device: their keys and face |
+| `src/lib/emoji.ts` | Emoji: the list, search, and drawing them into PNGs |
 | `src/lib/fakedevice.ts` | The in-memory device, for tests and `?fake` |
-| `wasm/main.go` | The WebAssembly part: d200-deck's `deck` and `render` packages for the browser |
+| `wasm/main.go` | The WebAssembly part: d200-deck's `deck`, `icons` and `render` packages for the browser |
 
 Tests sit next to the code as `*.test.ts`.
 

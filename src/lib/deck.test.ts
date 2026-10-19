@@ -41,6 +41,40 @@ describe("deck (WebAssembly)", () => {
     expect(d.iconPath("nope")).toBeNull();
   });
 
+  it("embeds the icons keys show, and only those", async () => {
+    const d = await deck();
+    const c = {
+      version: 1,
+      home: "main",
+      pages: {
+        main: {
+          keys: {
+            "0": { icon: "volume_up", action: {} },
+            "1": { icon: "emoji-1f3ae", action: {} },
+            "2": { action: { type: "app", app: "discord", op: "mute" } },
+            "3": { icon: "nope", action: {} },
+          },
+        },
+      },
+      icons: { "emoji-1f3ae": { png: "iVBORw0KGgo=" }, "emoji-1f600": { png: "iVBORw0KGgo=" } },
+    };
+    const { icons, unknown } = d.embed(c);
+    expect(unknown).toEqual(["nope"]);
+    expect(icons.volume_up.viewBox).toBe("0 -960 960 960");
+    expect(icons["emoji-1f3ae"]).toEqual({ png: "iVBORw0KGgo=" }); // kept: a key uses it
+    expect(icons["emoji-1f600"]).toBeUndefined(); // dropped: none does
+    expect(icons.mic && icons.mic_off).toBeTruthy(); // Discord mute's built-in looks
+  });
+
+  it("draws keys whose icons aren't embedded yet", async () => {
+    const d = await deck();
+    const c = { version: 1, home: "main", pages: { main: { keys: { "0": { icon: "mic", action: {} } } } } };
+    expect(d.setAssets(c)).toEqual([]);
+    const px = d.renderKey(0, c.pages.main.keys["0"])!;
+    // the icon is drawn: some pixels are the light foreground, not the background
+    expect(px.data.some((v, i) => i % 4 === 0 && v > 200)).toBe(true);
+  });
+
   it("lists names", async () => {
     const { names } = await deck();
     expect(names.keys).toContain("f13");
