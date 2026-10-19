@@ -22,6 +22,11 @@ export const Cmd = {
   Host: 0x0d,
 } as const;
 
+// How long the device waits for a press when it asks about a change: a
+// config that gives keys new actions, or a new USB network address. The
+// reply comes after the press.
+export const ConfirmTimeout = 60_000;
+
 export const MaxConfigRead = 16384;
 export const MaxConfigData = MaxRequest - 4;
 
@@ -50,7 +55,7 @@ export interface Hello {
   os: { name?: string; version?: string; flavour?: string; build?: string };
   serial: string;
   keys: number;
-  model?: string; // e.g. "ulanzi,d200"; older devices don't send it
+  model?: string; // e.g. "ulanzi,d200", its device tree's first compatible; older devices don't send it
   ipv4?: string;
 }
 

@@ -28,6 +28,8 @@ export class Device {
   changed = $state<ConfigInfo | null>(null);
   // keys held down on the device right now
   down = $state<number[]>([]);
+  // the button to press on the device while it asks about a change, else ""
+  asking = $state("");
 
   onKey: ((e: KeyEvent) => void) | null = null;
   // called after each connect, including after a re-plug
@@ -199,14 +201,23 @@ export class Device {
   // saveConfig replaces the device's config, if no one changed it since we
   // read it (force replaces it anyway).
   async saveConfig(data: Uint8Array, force = false) {
-    const info = await this.busy((conn, progress) => conn.writeConfig(force ? "" : this.rev, data, progress));
+    const info = await this.busy((conn, progress) =>
+      conn.writeConfig(force ? "" : this.rev, data, progress, () => (this.asking = "Save")).finally(
+        () => (this.asking = ""),
+      ),
+    );
     this.rev = info.rev;
     this.changed = null;
   }
 
-  // changeSettings changes device settings; most re-plug the device.
+  // changeSettings changes device settings; they re-plug the device, and
+  // the device asks before a new USB network address.
   async changeSettings(change: Settings) {
-    this.settings = await this.connected().settings(change);
+    try {
+      this.settings = await this.connected().settings(change, () => (this.asking = "Change"));
+    } finally {
+      this.asking = "";
+    }
   }
 
   async identify(key: number) {

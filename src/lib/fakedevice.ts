@@ -41,6 +41,9 @@ export class FakeDevice implements Transport {
   unknown = new Set<number>();
   // set to drop replies, as a device that went away
   silent = false;
+  // set to ask on the "screen" before a commit or a new USB address: the
+  // answer comes after delay ms
+  ask: { delay: number; yes: boolean } | null = null;
   private upload: { base: string; size: number; sha256: string; b: number[] } | null = null;
 
   constructor(config: unknown = { version: 1, home: "main", pages: { main: { keys: {} } } }) {
@@ -64,6 +67,14 @@ export class FakeDevice implements Transport {
     for (const r of encodeReply(seq, status, payload)) setTimeout(() => this.onReport?.(r));
   }
 
+  // asked waits for the answer when set to ask; "" for yes, else why not.
+  private async asked(): Promise<string> {
+    const a = this.ask;
+    if (!a) return "";
+    await new Promise((r) => setTimeout(r, a.delay));
+    return a.yes ? "" : "cancelled on the device";
+  }
+
   private async info() {
     return { rev: await sha256(this.config), size: this.config.length };
   }
@@ -81,9 +92,15 @@ export class FakeDevice implements Transport {
         if (p.length !== 1 || p[0] >= this.hello.keys) return [Status.BadRequest];
         this.identified.push(p[0]);
         return [Status.OK];
-      case Cmd.Settings:
-        if (p.length > 0) Object.assign(this.settingsState, JSON.parse(text.decode(p)));
+      case Cmd.Settings: {
+        const change = p.length > 0 ? (JSON.parse(text.decode(p)) as Settings) : {};
+        if (change.usb_net4 !== undefined) {
+          const why = await this.asked();
+          if (why) return [Status.Failed, bytes(why)];
+        }
+        Object.assign(this.settingsState, change);
         return [Status.OK, json(this.settingsState)];
+      }
       case Cmd.ConfigInfo:
         return [Status.OK, json(await this.info())];
       case Cmd.ConfigRead: {
@@ -113,6 +130,8 @@ export class FakeDevice implements Transport {
         if (u.base !== "" && u.base !== (await this.info()).rev) {
           return [Status.Failed, bytes("the config changed since you read it; read it again")];
         }
+        const why = await this.asked();
+        if (why) return [Status.Failed, bytes(why)];
         this.config = b;
         const info = await this.info();
         this.event(Event.ConfigChanged, info);

@@ -126,6 +126,24 @@ describe("config", () => {
     expect(changed).toEqual([saved.rev]);
   });
 
+  it("waits while the device asks, and says it's asking", async () => {
+    const { dev, conn } = connect();
+    dev.ask = { delay: 600, yes: true }; // past the 200 ms reply timeout
+    let asked = 0;
+    const data = new TextEncoder().encode(JSON.stringify(big));
+    await conn.writeConfig("", data, undefined, () => asked++);
+    expect(asked).toBe(1);
+    expect(dev.config).toEqual(data);
+  });
+
+  it("fails when the device's question is cancelled", async () => {
+    const { dev, conn } = connect();
+    dev.ask = { delay: 10, yes: false };
+    await expect(conn.writeConfig("", new TextEncoder().encode("{}"))).rejects.toThrow("cancelled on the device");
+    await expect(conn.settings({ usb_net4: "10.0.0.4" })).rejects.toThrow("cancelled on the device");
+    expect(await conn.settings({ usb_drive: false })).toMatchObject({ usb_drive: false }); // never asked
+  });
+
   it("refuses a write over a config that changed", async () => {
     const { dev, conn } = connect();
     const { info } = await conn.readConfig();

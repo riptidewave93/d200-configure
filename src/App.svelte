@@ -199,6 +199,10 @@
   {#if device.error}<p class="warn bad-line">{device.error}</p>{/if}
   {#if error}<p class="warn bad-line">{error}</p>{/if}
 
+  {#if device.asking}
+    <p class="asking" role="status">Press <strong>{device.asking}</strong> on the device to confirm.</p>
+  {/if}
+
   {#if conflict}
     <div class="warn row">
       <span class="grow">The device's config changed since it was read here.</span>
@@ -355,6 +359,13 @@
   }
   .bad-line {
     border-color: var(--bad);
+  }
+  .asking {
+    margin: 0;
+    padding: 12px 16px;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
   .start {
     max-width: 560px;

@@ -66,6 +66,11 @@ The config is one JSON file, images and fonts included, up to 2 MiB. It moves in
    replace their config or load it. Otherwise it writes the new config, based on the rev it read.
 4. The device checks the config again and refuses it, with a reason, if it changed meanwhile or
    isn't valid. The site shows that reason as it is.
+5. If the new config gives keys new actions (anything but opening pages, back and home), the device
+   asks on its screen first, and answers only after a press, within 60 s. So a website can't make
+   keys run things without the user knowing. When the answer doesn't come at once, the site says
+   "Press Save on the device to confirm." Changes to looks and pages save at once. A new USB network
+   address is asked about the same way ("Press Change").
 
 After a re-plug the site compares revs and reads the config again only if it changed.
 

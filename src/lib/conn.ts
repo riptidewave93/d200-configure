@@ -3,6 +3,7 @@
 
 import {
   Cmd,
+  ConfirmTimeout,
   type ConfigInfo,
   decodeReply,
   encodeRequest,
@@ -39,6 +40,10 @@ export type EventListener = (code: number, payload: Uint8Array) => void;
 
 // Progress gets the bytes moved so far and the total.
 export type Progress = (done: number, total: number) => void;
+
+// Asking is called when the device seems to be asking on its screen: a
+// request it may ask about hasn't been answered at once.
+export type Asking = () => void;
 
 interface Pending {
   seq: number;
@@ -113,15 +118,22 @@ export class Conn {
     else w.reject(new DeviceError(p.status, `device: status ${p.status}`));
   }
 
-  // request sends one request and waits for its reply.
-  request(cmd: number, payload?: Uint8Array): Promise<Uint8Array> {
-    const run = () => this.send(cmd, payload);
+  // request sends one request and waits for its reply, up to wait ms.
+  request(cmd: number, payload?: Uint8Array, wait = this.timeout): Promise<Uint8Array> {
+    const run = () => this.send(cmd, payload, wait);
     const r = this.queue.then(run, run);
     this.queue = r.catch(() => {});
     return r;
   }
 
-  private send(cmd: number, payload?: Uint8Array): Promise<Uint8Array> {
+  // askable sends a request the device may ask the user about first: it
+  // waits for the press, and calls asking if the reply doesn't come at once.
+  private askable(cmd: number, payload?: Uint8Array, asking?: Asking): Promise<Uint8Array> {
+    const t = asking ? setTimeout(asking, Math.min(1000, this.timeout)) : undefined;
+    return this.request(cmd, payload, ConfirmTimeout + this.timeout).finally(() => clearTimeout(t));
+  }
+
+  private send(cmd: number, payload: Uint8Array | undefined, wait: number): Promise<Uint8Array> {
     if (this.closed) return Promise.reject(new Error("disconnected"));
     this.seq = (this.seq + 1) & 0xffff;
     if (this.seq === EventSeq) this.seq++;
@@ -130,7 +142,7 @@ export class Conn {
       const timer = setTimeout(() => {
         if (this.pending?.seq === seq) this.pending = null;
         reject(new Error("The device didn't answer."));
-      }, this.timeout);
+      }, wait);
       const done = <T>(f: (v: T) => void) => (v: T) => {
         clearTimeout(timer);
         f(v);
@@ -156,9 +168,12 @@ export class Conn {
     return this.requestJSON<HostInfo>(Cmd.Host);
   }
 
-  // settings reads the settings, or changes the ones given.
-  settings(change?: Settings) {
-    return this.requestJSON<Settings>(Cmd.Settings, change);
+  // settings reads the settings, or changes the ones given. The device
+  // asks before changing the USB network address.
+  async settings(change?: Settings, asking?: Asking): Promise<Settings> {
+    if (change?.usb_net4 === undefined) return this.requestJSON<Settings>(Cmd.Settings, change);
+    const b = await this.askable(Cmd.Settings, json.encode(JSON.stringify(change)), asking);
+    return JSON.parse(text.decode(b)) as Settings;
   }
 
   async identify(key: number) {
@@ -193,8 +208,8 @@ export class Conn {
   }
 
   // writeConfig replaces the config with data, if it's still version base
-  // ("" replaces any).
-  async writeConfig(base: string, data: Uint8Array, progress?: Progress): Promise<ConfigInfo> {
+  // ("" replaces any). If it gives keys new actions, the device asks first.
+  async writeConfig(base: string, data: Uint8Array, progress?: Progress, asking?: Asking): Promise<ConfigInfo> {
     const start = { base, size: data.length, sha256: await sha256(data) };
     await this.request(Cmd.ConfigWrite, json.encode(JSON.stringify(start)));
     progress?.(0, data.length);
@@ -206,7 +221,7 @@ export class Conn {
       await this.request(Cmd.ConfigData, part);
       progress?.(off + chunk.length, data.length);
     }
-    return this.requestJSON<ConfigInfo>(Cmd.ConfigCommit);
+    return JSON.parse(text.decode(await this.askable(Cmd.ConfigCommit, undefined, asking))) as ConfigInfo;
   }
 }
 
