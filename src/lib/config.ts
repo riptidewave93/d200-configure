@@ -66,7 +66,7 @@ export interface Action {
 
 export const ConfigVersion = 1;
 
-export const MaxConfigBytes = 2 << 20;
+export const MaxConfigBytes = 4 << 20;
 
 export function emptyConfig(): Config {
   return { version: ConfigVersion, home: "main", pages: { main: { keys: {} } } };

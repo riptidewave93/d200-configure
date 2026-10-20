@@ -68,6 +68,8 @@ export class FakeDevice implements Transport {
   // set to ask on the "screen" before a commit or a new USB address: the
   // answer comes after delay ms
   ask: { delay: number; yes: boolean } | null = null;
+  // set while it's still gzipping the config: no gzip_size yet
+  gzipping = false;
   // called after a reset, as the device restarts
   onRestart: (() => void) | null = null;
   resets = 0;
@@ -173,7 +175,7 @@ export class FakeDevice implements Transport {
       }
       case Cmd.ConfigInfo: {
         const info = await this.info();
-        if (this.large && p.length && JSON.parse(text.decode(p)).gzip) {
+        if (this.large && !this.gzipping && p.length && JSON.parse(text.decode(p)).gzip) {
           return [Status.OK, json({ ...info, gzip_size: (await this.gzipped()).length })];
         }
         return [Status.OK, json(info)];

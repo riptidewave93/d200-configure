@@ -214,10 +214,13 @@ export class Conn {
   }
 
   // readConfig reads the config file and names its version. Protocol 4
-  // devices send it gzipped.
+  // devices send it gzipped, once they have it gzipped: until then (a few
+  // seconds after a start or a plain upload) there's no gzip_size, and it
+  // comes as it is.
   async readConfig(progress?: Progress): Promise<{ data: Uint8Array; info: ConfigInfo }> {
     const info = await this.configInfo(this.gzipped);
-    const total = this.gzipped ? (info.gzip_size ?? 0) : info.size;
+    const gz = this.gzipped && info.gzip_size !== undefined;
+    const total = gz ? info.gzip_size! : info.size;
     const raw = new Uint8Array(total);
     let n = 0;
     progress?.(0, total);
@@ -226,7 +229,7 @@ export class Conn {
       const v = new DataView(req.buffer);
       v.setUint32(0, n, true);
       v.setUint16(4, this.gzipped ? MaxConfigReadLarge : MaxConfigRead, true);
-      if (this.gzipped) req[6] = ConfigReadGzip;
+      if (gz) req[6] = ConfigReadGzip;
       const part = await this.request(Cmd.ConfigRead, req);
       if (part.length === 0) break;
       raw.set(part.subarray(0, total - n), n);
@@ -235,7 +238,7 @@ export class Conn {
     }
     const changed = new Error("The config changed while it was read. Read it again.");
     if (n < total) throw changed;
-    const data = this.gzipped ? await gunzip(raw, info.size).catch(() => new Uint8Array()) : raw;
+    const data = gz ? await gunzip(raw, info.size).catch(() => new Uint8Array()) : raw;
     if (data.length !== info.size || (await sha256(data)) !== info.rev) throw changed;
     return { data, info };
   }

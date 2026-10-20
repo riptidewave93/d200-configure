@@ -62,6 +62,13 @@ describe("features", () => {
     expect(hasCommand(null, "reset")).toBe(false);
   });
 
+  it("refuses a config bigger than the device takes", () => {
+    const f = { ...site, limits: { ...site.limits, config_bytes: 2 << 20 } };
+    const c = config({ label: "x", action: {} }, { images: { a: "x".repeat(2 << 20) } });
+    expect(unsupported(c, f)).toContain("configs over 2 MB");
+    expect(unsupported(config({ label: "x", action: {} }), f)).not.toContain("configs over 2 MB");
+  });
+
   it("offers what the site supports with no device", () => {
     expect(forDevice(site, undefined)).toBe(site);
   });

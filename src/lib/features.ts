@@ -152,7 +152,10 @@ export function unsupported(c: Config, f: Features): string[] {
   const over = (m: Record<string, string> | undefined, limit: number | undefined, words: string) => {
     if (limit !== undefined && Object.values(m ?? {}).some((v) => size(v) > limit)) out.add(words);
   };
-  over(c.images, L.image_bytes, `pictures over ${kb(L.image_bytes)}`);
+  if (L.config_bytes !== undefined && new TextEncoder().encode(JSON.stringify(c)).length > L.config_bytes) {
+    out.add(`configs over ${kb(L.config_bytes)}`);
+  }
+    over(c.images, L.image_bytes, `pictures over ${kb(L.image_bytes)}`);
   over(c.fonts, L.font_bytes, `fonts over ${kb(L.font_bytes)}`);
   const pngs = Object.fromEntries(Object.entries(c.icons ?? {}).flatMap(([k, i]) => (i.png ? [[k, i.png]] : [])));
   over(pngs, L.icon_bytes, `picture icons over ${kb(L.icon_bytes)}`);
@@ -160,7 +163,7 @@ export function unsupported(c: Config, f: Features): string[] {
   return [...out];
 }
 
-const kb = (n = 0) => `${Math.round(n / 1024)} KB`;
+const kb = (n = 0) => (n >= 1 << 20 ? `${Math.round(n / (1 << 20))} MB` : `${Math.round(n / 1024)} KB`);
 
 // unsupportedMessage is why the device can't take c, or "".
 export function unsupportedMessage(c: Config, f: Features): string {

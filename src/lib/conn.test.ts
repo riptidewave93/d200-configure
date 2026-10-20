@@ -135,6 +135,16 @@ describe.each([3, 4])("config, protocol %i", (protocol) => {
     expect(seen.at(-1)).toBe(protocol === 4 ? info.gzip_size : info.size);
   });
 
+  it("reads the config as it is while the device is still gzipping it", async () => {
+    const { dev, conn } = await open(new FakeDevice(big));
+    dev.gzipping = true;
+    const seen: number[] = [];
+    const { data, info } = await conn.readConfig((n) => seen.push(n));
+    expect(JSON.parse(new TextDecoder().decode(data))).toEqual(big);
+    expect(info.gzip_size).toBeUndefined();
+    expect(seen.at(-1)).toBe(info.size);
+  });
+
   it("moves less when gzipped", async () => {
     const { dev, conn } = await open();
     let sent = 0;

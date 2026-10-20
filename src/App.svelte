@@ -192,7 +192,7 @@
 
   async function openFile(f: File) {
     error = notice = "";
-    if (f.size > MaxConfigBytes) {
+    if (f.size > (takes?.limits.config_bytes ?? MaxConfigBytes)) {
       error = "That file is too big for a config.";
       return;
     }
