@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits"],
+  "enabledManagers": ["custom.regex", "github-actions", "npm"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "d200-deck's release the site is built from (a tag; a commit hash isn't tracked)",
+      "managerFilePatterns": ["/^Makefile$/"],
+      "matchStrings": ["DECK_VERSION := (?<currentValue>v\\d+\\.\\d+\\.\\d+\\S*)"],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "riptidewave93/d200-deck"
+    },
+    {
+      "customType": "regex",
+      "description": "The container images the Makefile runs",
+      "managerFilePatterns": ["/^Makefile$/"],
+      "matchStrings": ["_IMAGE \\?= (?<depName>[a-z0-9./_-]+):(?<currentValue>\\S+)"],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "d200-deck: its own PR as soon as it releases",
+      "matchDepNames": ["riptidewave93/d200-deck"],
+      "semanticCommitType": "fix",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "Actions and container images: one PR a week",
+      "matchManagers": ["github-actions", "custom.regex"],
+      "matchDatasources": ["github-tags", "docker"],
+      "matchDepNames": ["!riptidewave93/d200-deck"],
+      "groupName": "tools",
+      "schedule": ["* 0-5 * * 1"],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "npm packages (all build and test tools): one PR a week",
+      "matchManagers": ["npm"],
+      "groupName": "npm packages",
+      "schedule": ["* 0-5 * * 1"],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps"
+    }
+  ]
+}

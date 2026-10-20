@@ -38,6 +38,13 @@ repo, or CI can't fetch it. To build as CI does:
 make deck-source && make DECK_DIR=.cache/d200-deck
 ```
 
+## Contributing
+
+Changes go in as pull requests with a [conventional](https://www.conventionalcommits.org/) title,
+such as `feat: start a new config without a device` or `fix(deps): update d200-deck to v0.2.0`; a
+check enforces it. They're squash-merged, so the title becomes the commit on `main`, and merging
+deploys the site. Renovate opens a PR when d200-deck releases, and one a week for the build tools.
+
 ## Publishing
 
 `.github/workflows/pages.yml` runs `make` on every push and pull request, and publishes `dist/` to
