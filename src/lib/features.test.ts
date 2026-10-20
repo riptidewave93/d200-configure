@@ -62,6 +62,14 @@ describe("features", () => {
     expect(hasCommand(null, "reset")).toBe(false);
   });
 
+  it("takes a device that doesn't say its config limit as the first release's 2 MB", () => {
+    const s = { ...site, limits: { ...site.limits, config_bytes: 4 << 20 } };
+    expect(forDevice(s, old).limits.config_bytes).toBe(2 << 20);
+    expect(forDevice(s, older(s)).limits.config_bytes).toBe(2 << 20);
+    expect(forDevice(s, { ...old, limits: { ...old.limits, config_bytes: 4 << 20 } }).limits.config_bytes).toBe(4 << 20);
+    expect(forDevice(s, null).limits.config_bytes).toBe(4 << 20); // no device: the site's own
+  });
+
   it("refuses a config bigger than the device takes", () => {
     const f = { ...site, limits: { ...site.limits, config_bytes: 2 << 20 } };
     const c = config({ label: "x", action: {} }, { images: { a: "x".repeat(2 << 20) } });

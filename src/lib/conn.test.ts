@@ -145,6 +145,22 @@ describe.each([3, 4])("config, protocol %i", (protocol) => {
     expect(seen.at(-1)).toBe(info.size);
   });
 
+  it("writes the config as it is while the device is still gzipping", async () => {
+    const { dev, conn } = await open();
+    dev.gzipping = true;
+    let sent = 0;
+    const send = dev.send.bind(dev);
+    dev.send = (r) => {
+      const req = decodeRequest(r);
+      if (req.cmd === Cmd.ConfigData) sent += req.payload.length - 4;
+      return send(r);
+    };
+    const data = new TextEncoder().encode(JSON.stringify(big));
+    await conn.writeConfig("", data);
+    expect(dev.config).toEqual(data);
+    expect(sent).toBe(data.length);
+  });
+
   it("moves less when gzipped", async () => {
     const { dev, conn } = await open();
     let sent = 0;

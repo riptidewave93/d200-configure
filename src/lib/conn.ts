@@ -245,14 +245,16 @@ export class Conn {
 
   // writeConfig replaces the config with data, if it's still version base
   // ("" replaces any). If it gives keys new actions, the device asks first.
-  // Protocol 4 devices take it gzipped.
+  // Protocol 4 devices take it gzipped once they say its gzip_size (as
+  // readConfig).
   async writeConfig(base: string, data: Uint8Array, progress?: Progress, asking?: Asking): Promise<ConfigInfo> {
-    const sent = this.gzipped ? await gzip(data) : data;
+    const gz = this.gzipped && (await this.configInfo(true)).gzip_size !== undefined;
+    const sent = gz ? await gzip(data) : data;
     const start = {
       base,
       size: data.length,
       sha256: await sha256(data),
-      ...(this.gzipped ? { gzip_size: sent.length } : {}),
+      ...(gz ? { gzip_size: sent.length } : {}),
     };
     await this.request(Cmd.ConfigWrite, json.encode(JSON.stringify(start)));
     progress?.(0, sent.length);

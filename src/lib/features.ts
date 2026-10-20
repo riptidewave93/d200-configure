@@ -29,9 +29,9 @@ function byApp(site: Record<string, string[]>, other: Record<string, string[]>) 
   return Object.fromEntries(Object.entries(site).map(([app, l]) => [app, other[app] ? both(l, other[app]) : l]));
 }
 
-// Limits that change how the device works: one that doesn't report them
-// works the older way.
-const newWays = ["anim_bytes"];
+// Limits a device without them has the first release's of: undefined for
+// one that changes how it works (anim_bytes: the older GIF budget).
+const olderLimits: Record<string, number | undefined> = { anim_bytes: undefined, config_bytes: 2 << 20 };
 
 // forDevice is what both the site and the device support, the smaller of
 // each limit; the site's own with no device (for one that doesn't say, see
@@ -50,8 +50,8 @@ export function forDevice(site: Features, device?: Features | null): Features {
     args: byApp(site.args, device.args ?? {}),
     limits: Object.fromEntries(
       Object.entries(site.limits).flatMap(([k, v]) => {
-        const d = device.limits?.[k];
-        return d === undefined && newWays.includes(k) ? [] : [[k, Math.min(v, d ?? v)]];
+        const d: number | undefined = device.limits?.[k] ?? (k in olderLimits ? olderLimits[k] : v);
+        return d === undefined ? [] : [[k, Math.min(v, d)]];
       }),
     ),
   };
@@ -60,7 +60,7 @@ export function forDevice(site: Features, device?: Features | null): Features {
 // older is what a device that doesn't say (older software) is taken to
 // support: the site's lists, without the newer ways of working.
 export function older(site: Features): Features {
-  return { ...site, limits: Object.fromEntries(Object.entries(site.limits).filter(([k]) => !newWays.includes(k))) };
+  return { ...site, limits: Object.fromEntries(Object.entries(site.limits).filter(([k]) => !(k in olderLimits))) };
 }
 
 // hasCommand says whether the device takes a request newer than the first
