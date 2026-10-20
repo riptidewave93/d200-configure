@@ -20,7 +20,7 @@ What to know before changing the site. The protocol and config format are d200-d
 | `src/components/` | Page tree, breadcrumb, device face, key and page panels, action editor, device panel |
 | `src/lib/proto.ts`, `conn.ts` | The protocol and a connection, after d200-deck's `proto/` (same names) |
 | `src/lib/webhid.ts`, `device.svelte.ts` | Opening the device, reconnecting after it re-plugs |
-| `src/lib/gzip.ts` | Gzipped configs (protocol 4) |
+| `src/lib/gzip.ts` | Gzipped configs |
 | `src/lib/config.ts`, `doc.svelte.ts` | The config's types, and the config being edited |
 | `src/lib/features.ts` | What to offer, and the pre-save check |
 | `src/lib/errors.ts` | Why a config can't be saved, in plain words |
@@ -66,9 +66,10 @@ It's built with TinyGo, so:
 
 - `Conn` sends one request at a time and waits up to 2 s for each reply
   ([api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#requests)).
-- Protocols 3 and 4, told apart by report size. 4 moves configs gzipped once the device reports
-  their `gzip_size`, and as they are until then (just after it starts or gets a new config). Below 3
-  or above 4, the site says to update the device or reload the page.
+- Protocol 4 only. An older device (its reports are smaller) is told to update, a newer one to
+  reload the page.
+- Configs move gzipped once the device reports their `gzip_size`, and as they are until then (just
+  after it starts or gets a new config).
 - Events: `key` selects that key on the page, `config-changed` offers to load the new config,
   `usb-rebinding` waits for the device to re-plug and reconnects to the same serial number.
 - The site sends the time on connecting and every hour, and asks every 5 s whether the PC helper

@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Device } from "./device.svelte";
 import { FakeDevice } from "./fakedevice";
 import type { Features } from "./features";
-import { Cmd, TimePeriod } from "./proto";
+import type { Transport } from "./conn";
+import { Cmd, decodeRequest, TimePeriod } from "./proto";
 
 describe("device", () => {
   beforeEach(() => {
@@ -22,10 +23,19 @@ describe("device", () => {
     expect(d.state).toBe("ready");
     expect(fake.times).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(TimePeriod);
-    await vi.waitFor(() => expect(fake.times).toHaveLength(2));
+    // after the hour's PC helper checks, which queue up ahead of it
+    await vi.waitFor(() => expect(fake.times).toHaveLength(2), { timeout: 10_000 });
     await d.disconnect();
     await vi.advanceTimersByTimeAsync(TimePeriod);
     expect(fake.times).toHaveLength(2);
+  });
+
+  it("drops an unanswered PC helper check on disconnect", async () => {
+    const d = new Device();
+    await d.open(new FakeDevice());
+    vi.advanceTimersByTime(5000); // asks whether the PC helper runs
+    await d.disconnect(); // before the reply: an unhandled rejection fails the run
+    await new Promise((r) => setTimeout(r, 10));
   });
 
   it("connects only to the device it waits for, when asked", async () => {
@@ -252,6 +262,22 @@ describe("device", () => {
     await d.open(newer);
     expect(d.state).toBe("none");
     expect(d.error).toBe("This device's software is newer than this site. Reload the page.");
+  });
+
+  it("says when a device's software is too old for the site", async () => {
+    // protocol 3 and older reply in 64-byte reports
+    const old: Transport = {
+      onReport: null,
+      async send(r) {
+        const { seq } = decodeRequest(r);
+        setTimeout(() => old.onReport?.(new Uint8Array([seq & 0xff, seq >> 8, 0, 0, 0, ...new Array(59).fill(0)])));
+      },
+      async close() {},
+    };
+    const d = new Device();
+    await d.open(old);
+    expect(d.state).toBe("none");
+    expect(d.error).toBe("This device's software is too old for this site. Update it first.");
   });
 
   it("connects to a device that can't take the time", async () => {

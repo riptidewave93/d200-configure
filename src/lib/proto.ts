@@ -3,24 +3,19 @@
 
 import type { Features } from "./features";
 
-// Input reports are 64 bytes (protocol 3) or 1024 (protocol 4). A reply's
-// header has a 1-byte length in the first and a 2-byte one in the second,
-// so each report is read by its size.
-export const RawInSize = 64;
-export const RawInSizeLarge = 1024;
+// Reports are 1024 bytes each way.
+export const RawInSize = 1024;
 export const RawOutSize = 1024;
 export const MaxRequest = RawOutSize - 5;
-export const MaxReply = RawInSize - 5;
-export const MaxReplyLarge = RawInSizeLarge - 6;
+export const MaxReply = RawInSize - 6;
 export const MaxMessage = 64 << 10;
 
 export const RawUsagePage = 0xffd2;
-// The oldest protocol the site talks; protocol 4 adds 1024-byte input
-// reports and gzipped config transfers.
-export const Version = 3;
-export const VersionLarge = 4;
-// the newest the site talks: a device above it has newer software than the page
-export const VersionMax = 4;
+// The newest protocol the site talks, and the oldest: a device below
+// MinVersion needs updating, and one above Version has newer software than
+// the page.
+export const Version = 4;
+export const MinVersion = 4;
 
 export const Cmd = {
   Hello: 0x01,
@@ -45,8 +40,7 @@ export const TimePeriod = 60 * 60_000;
 // reply comes after the press.
 export const ConfirmTimeout = 60_000;
 
-export const MaxConfigRead = 16384; // per config-read, protocol 3
-export const MaxConfigReadLarge = 61440; // protocol 4
+export const MaxConfigRead = 61440; // per config-read
 export const ConfigReadGzip = 0x01; // config-read flag: read the gzip stream
 export const MaxConfigData = MaxRequest - 4;
 
@@ -131,7 +125,7 @@ export interface Offset {
 export interface ConfigInfo {
   rev: string;
   size: number;
-  gzip_size?: number; // asked for with {"gzip": true}, protocol 4
+  gzip_size?: number; // asked for with {"gzip": true}; absent until the device has it gzipped
 }
 
 export interface KeyEvent {
@@ -159,10 +153,10 @@ export interface ReplyPart {
 }
 
 export function decodeReply(b: Uint8Array): ReplyPart {
-  const large = b.length > RawInSize;
-  const head = large ? 6 : 5;
-  const n = large ? b[4] | (b[5] << 8) : b[4];
-  if (b.length < head || n > b.length - head) throw new Error("bad reply");
+  const head = 6;
+  if (b.length < head) throw new Error("bad reply");
+  const n = b[4] | (b[5] << 8);
+  if (n > b.length - head) throw new Error("bad reply");
   return {
     seq: b[0] | (b[1] << 8),
     status: b[2],
@@ -187,15 +181,10 @@ export function decodeRequest(b: Uint8Array): Request {
   return { seq: b[0] | (b[1] << 8), cmd: b[2], payload: b.slice(5, 5 + n) };
 }
 
-// encodeReply splits a reply into input reports of size bytes.
-export function encodeReply(
-  seq: number,
-  status: number,
-  payload: Uint8Array = new Uint8Array(),
-  size = RawInSize,
-): Uint8Array[] {
-  const large = size > RawInSize;
-  const head = large ? 6 : 5;
+// encodeReply splits a reply into input reports.
+export function encodeReply(seq: number, status: number, payload: Uint8Array = new Uint8Array()): Uint8Array[] {
+  const size = RawInSize;
+  const head = 6;
   const out: Uint8Array[] = [];
   let off = 0;
   do {
@@ -206,7 +195,7 @@ export function encodeReply(
     b[2] = status;
     b[3] = (off === 0 ? FlagFirst : 0) | (off + n < payload.length ? FlagMore : 0);
     b[4] = n & 0xff;
-    if (large) b[5] = n >> 8;
+    b[5] = n >> 8;
     b.set(payload.subarray(off, off + n), head);
     out.push(b);
     off += n;
