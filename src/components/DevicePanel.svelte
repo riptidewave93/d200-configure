@@ -76,13 +76,9 @@
   // Reset device: erases its keys and settings, asked on the device too
   let canReset = $derived(hasCommand(device.hello?.features, "reset"));
   async function reset() {
-    const lost = doc.dirty ? "\n\nYour unsaved changes here are lost too. Save a file first to keep them." : "";
+    const lost = doc.dirty ? " Your unsaved changes here are lost too." : "";
     const ok = confirm(
-      "Erase everything on the device?\n\n" +
-        "Its keys and all its settings go: brightness, sleep screen, screen alignment, the USB drive and network, " +
-        "and which computer it's used with. Its software stays.\n\n" +
-        "The device then restarts, which takes about half a minute." +
-        lost,
+      "This resets all device settings, from your key layouts to screen settings, and restarts the device." + lost,
     );
     if (!ok) return;
     error = "";
@@ -178,7 +174,7 @@
       {:else}
         <section class="align" aria-label="Align screen">
           <h3>Align screen</h3>
-          <p class="small">Move the picture until each white frame sits inside its key.</p>
+          <p class="small">Move the picture until the stripes look the same on every side of each key.</p>
           <div class="pad">
             {#each [["up", "↑", 0, -1], ["left", "←", -1, 0], ["right", "→", 1, 0], ["down", "↓", 0, 1]] as const as [name, arrow, dx, dy] (name)}
               <button
