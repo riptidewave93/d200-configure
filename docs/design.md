@@ -44,7 +44,8 @@ Tests sit next to the code, as `*.test.ts` and `*_test.go`.
 | `renderKey`, `setAssets` | `render.Renderer`, `icons.Embed` | Key previews, as the device draws them |
 | `embed` | `icons.Embed` | Copying the icons keys use into the config |
 | `features` | `deck.Features` | What the site supports |
-| `fitImage`, `imageInfo` | `wasm/fit`, `deck.ImageSize` | Fitting pictures as they're added |
+| `fitImage` | `wasm/fit`, `deck.ImageSize` | Fitting pictures as they're added |
+| `animBytes`, `pictureBox` | `render.AnimBytes`, `render.PictureBox` | A page's animation budget, as the device counts it |
 | `layout` | `render.Key` | Where the keys sit on the face |
 | `iconNames`, `iconPath` | `icons.Names`, `icons.Get` | The icon picker |
 | `missingGlyphs`, `fontLacks` | `render.MissingGlyphs` | Warning about characters a font lacks |
@@ -101,7 +102,8 @@ Gate a new option in the editor on its field or name.
 ## Pictures and fonts
 
 - **Pictures** are fitted when added (`wasm/fit`): scaled to where they're drawn, animated GIFs
-  thinned to the device's frame budget, then encoded within the byte limit.
+  thinned to what the page's other GIFs leave of its animation budget (`anim_bytes`, a byte a
+  pixel; 4 on devices without it), then encoded within the byte limit.
 - **Emoji** are drawn with the computer's emoji font into a PNG icon named `emoji-<code points>`.
 - **Catalog fonts** (`src/lib/fontcatalog.json`) are downloaded by `make fonts` into
   `public/fonts/`, kept in git. A font goes into the config cut down to the characters its labels

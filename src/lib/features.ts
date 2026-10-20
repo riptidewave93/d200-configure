@@ -27,6 +27,10 @@ function byApp(site: Record<string, string[]>, other: Record<string, string[]>) 
   return Object.fromEntries(Object.entries(site).map(([app, l]) => [app, other[app] ? both(l, other[app]) : l]));
 }
 
+// Limits that change how the device works: one that doesn't report them
+// works the older way.
+const newWays = ["anim_bytes"];
+
 // forDevice is what both the site and the device support: the site's own
 // list for a device that doesn't say (older software), and the smaller of
 // each limit.
@@ -43,7 +47,10 @@ export function forDevice(site: Features, device?: Features | null): Features {
     apps: byApp(site.apps, device.apps ?? {}),
     args: byApp(site.args, device.args ?? {}),
     limits: Object.fromEntries(
-      Object.entries(site.limits).map(([k, v]) => [k, Math.min(v, device.limits?.[k] ?? v)]),
+      Object.entries(site.limits).flatMap(([k, v]) => {
+        const d = device.limits?.[k];
+        return d === undefined && newWays.includes(k) ? [] : [[k, Math.min(v, d ?? v)]];
+      }),
     ),
   };
 }

@@ -16,6 +16,13 @@ export interface Pixels {
   next: number;
 }
 
+// A page's budget for animated GIFs: bytes in all, frames kept perPixel
+// bytes a pixel at the size drawn (see pictures.ts, animBudget).
+export interface AnimBudget {
+  bytes: number;
+  perPixel: 1 | 4;
+}
+
 // A picture fitted to the device: base64 PNG, JPEG or GIF.
 export interface Fitted {
   data: string;
@@ -24,12 +31,6 @@ export interface Fitted {
   frames: number;
   dropped: number; // frames left out to fit
   changed: boolean; // false: it fit as it was
-}
-
-export interface ImageInfo {
-  width: number;
-  height: number;
-  frames: number;
 }
 
 export interface Deck {
@@ -43,10 +44,16 @@ export interface Deck {
   setAssets(config: Config): string[];
   // renderKey draws key i as the device does; on draws its look while on
   renderKey(i: number, b: Button, on?: boolean): Pixels | null;
-  // fitImage scales a picture down to width x height and maxBytes, as the
-  // device needs; it throws why it can't
-  fitImage(b: Uint8Array, width: number, height: number, maxBytes: number): Fitted;
-  imageInfo(base64: string): ImageInfo | null;
+  // fitImage scales a picture down to width x height and maxBytes, and an
+  // animated GIF to its share of the page's animation budget, as the device
+  // needs; it throws why it can't
+  fitImage(b: Uint8Array, width: number, height: number, maxBytes: number, anim: AnimBudget): Fitted;
+  // animBytes is what a GIF drawn to fit width x height takes of a page's
+  // animation budget, kept perPixel bytes a pixel; 0 if it's still
+  animBytes(base64: string, width: number, height: number, perPixel: number): number;
+  // pictureBox is the box a picture on key i is drawn to fit: an image or a
+  // picture icon, beside a label or not
+  pictureBox(i: number, image: boolean, label: boolean): [number, number] | null;
   // newPage says the preview shows another page: each has its own budget
   // of animated frames, as on the device
   newPage(): void;
@@ -80,8 +87,9 @@ interface Exports {
   embed(json: string): string;
   setAssets(json: string): string;
   renderKey(i: number, json: string, on: boolean): Pixels | null;
-  fitImage(b: Uint8Array, width: number, height: number, maxBytes: number): string;
-  imageInfo(base64: string): string;
+  fitImage(b: Uint8Array, width: number, height: number, maxBytes: number, animBytes: number, perPixel: number): string;
+  animBytes(base64: string, width: number, height: number, perPixel: number): number;
+  pictureBox(i: number, image: boolean, label: boolean): [number, number] | null;
   newPage(): void;
   missingGlyphs(json: string): string;
   checkFont(b: Uint8Array): string;
@@ -133,8 +141,8 @@ async function start(code?: BufferSource): Promise<Deck> {
       return r.unknown;
     },
     renderKey: (i, b, on = false) => x.renderKey(i, JSON.stringify(b), on),
-    fitImage: (b, w, h, max) => {
-      const r = JSON.parse(x.fitImage(b, w, h, max));
+    fitImage: (b, w, h, max, anim) => {
+      const r = JSON.parse(x.fitImage(b, w, h, max, anim.bytes, anim.perPixel));
       if (r.error) throw new Error(r.error);
       return r;
     },
@@ -148,10 +156,8 @@ async function start(code?: BufferSource): Promise<Deck> {
       return r.data;
     },
     fontLacks: (b64, text) => x.fontLacks(b64, text),
-    imageInfo: (s) => {
-      const r = JSON.parse(x.imageInfo(s));
-      return r.error ? null : r;
-    },
+    animBytes: (s, w, h, p) => x.animBytes(s, w, h, p),
+    pictureBox: (i, image, label) => x.pictureBox(i, image, label),
     layout: JSON.parse(x.layout),
     icons,
     hasIcon: (name) => iconSet.has(name),

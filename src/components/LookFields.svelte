@@ -5,7 +5,7 @@
   import { app } from "../lib/context";
   import { set } from "../lib/edit";
   import { addCatalogFont, addFontFile, catalogFonts, fontName } from "../lib/fonts";
-  import { fitNote, iconSide, pictureID, readPicture } from "../lib/pictures";
+  import { animBudget, animatedBytes, fitNote, iconSide, pictureID, readPicture, share } from "../lib/pictures";
   import ColorField from "./ColorField.svelte";
   import IconField from "./IconField.svelte";
 
@@ -140,16 +140,21 @@
     try {
       const bytes = await readPicture(file);
       const c = doc.config!;
+      // a GIF gets what the page's others leave of the animation budget
+      const budget = animBudget(f?.limits);
+      const others = animatedBytes(c, d, doc.page, budget, look);
       if (adding === "image") {
         const k = d.layout.keys[key];
         const side = f?.limits.image_side ?? 512;
-        const fit = d.fitImage(bytes, Math.min(k.w, side), Math.min(k.h, side), f?.limits.image_bytes ?? MaxImageBytes);
+        const [w, h] = [Math.min(k.w, side), Math.min(k.h, side)];
+        const fit = d.fitImage(bytes, w, h, f?.limits.image_bytes ?? MaxImageBytes, share(budget, others, w, h));
         const id = pictureID(file.name, Object.keys(c.images ?? {}));
         (c.images ??= {})[id] = fit.data;
         setImage(id);
         pictureNote = fitNote(fit);
       } else {
-        const fit = d.fitImage(bytes, iconSide, iconSide, f?.limits.icon_bytes ?? MaxIconBytes);
+        const anim = share(budget, others, iconSide, iconSide);
+        const fit = d.fitImage(bytes, iconSide, iconSide, f?.limits.icon_bytes ?? MaxIconBytes, anim);
         const id = pictureID(file.name, Object.keys(c.icons ?? {}), "pic-");
         (c.icons ??= {})[id] = { png: fit.data };
         setIcon(id);

@@ -42,6 +42,12 @@ describe("features", () => {
     expect(f.limits).toEqual({ label: 24, label_lines: 3, font_bytes: 512 << 10 });
   });
 
+  it("keeps the animation budget only for a device that reports it", () => {
+    const s = { ...site, limits: { ...site.limits, anim_bytes: 8 << 20 } };
+    expect(forDevice(s, old).limits.anim_bytes).toBeUndefined();
+    expect(forDevice(s, { ...old, limits: { ...old.limits, anim_bytes: 4 << 20 } }).limits.anim_bytes).toBe(4 << 20);
+  });
+
   it("takes a device that doesn't say as supporting what the site does", () => {
     expect(forDevice(site, undefined)).toBe(site);
   });

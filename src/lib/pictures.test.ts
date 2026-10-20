@@ -3,7 +3,7 @@ import { deflateSync, crc32 } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import type { Config } from "./config";
 import { load } from "./deck";
-import { animatedPixels, fitNote, maxAnimPixels, pictureID, usedImages } from "./pictures";
+import { animBudget, animatedBytes, fitNote, oldAnimBudget, pictureID, share, usedImages } from "./pictures";
 
 const deck = () => load(readFileSync(new URL("../wasm/deck.wasm", import.meta.url)));
 const gif = readFileSync(new URL("./testdata/bars.gif", import.meta.url)); // 64x64, 4 frames
@@ -46,11 +46,11 @@ describe("pictures", () => {
 
   it("fits a big picture to a key, and keeps one that fits", async () => {
     const d = await deck();
-    const big = d.fitImage(png(800, 400), 196, 196, 256 << 10);
+    const big = d.fitImage(png(800, 400), 196, 196, 256 << 10, oldAnimBudget);
     expect([big.width, big.height, big.changed]).toEqual([196, 98, true]);
-    const small = d.fitImage(gif, 196, 196, 256 << 10);
+    const small = d.fitImage(gif, 196, 196, 256 << 10, oldAnimBudget);
     expect([small.width, small.frames, small.changed]).toEqual([64, 4, false]);
-    expect(() => d.fitImage(new Uint8Array([1, 2, 3]), 196, 196, 1000)).toThrow("not a PNG, JPEG or GIF image");
+    expect(() => d.fitImage(new Uint8Array([1, 2, 3]), 196, 196, 1000, oldAnimBudget)).toThrow("not a PNG, JPEG or GIF image");
   });
 
   it("finds the images keys use, their on looks too", () => {
@@ -63,16 +63,48 @@ describe("pictures", () => {
     expect([...usedImages(c)].sort()).toEqual(["a", "b"]);
   });
 
-  it("counts what animates, once per picture and size", async () => {
+  it("counts what animates on older devices: 4 bytes a pixel", async () => {
     const d = await deck();
     const data = gif.toString("base64");
     const keys = Object.fromEntries([0, 1, 2].map((k) => [String(k), { image: "bars", action: {} }]));
     const c: Config = { version: 1, home: "main", pages: { main: { keys } }, images: { bars: data } };
-    expect(animatedPixels(c, d, "main")).toBe(4 * 196 * 196); // three keys, one size
-    c.pages.main.keys["13"] = { image: "bars", action: {} }; // the wide key: another size
-    expect(animatedPixels(c, d, "main")).toBeGreaterThan(4 * 196 * 196);
-    expect(animatedPixels(c, d, "main")).toBeLessThan(maxAnimPixels);
-    expect(animatedPixels(c, d, "other")).toBe(0);
+    const b = animBudget({ label: 32 }); // no anim_bytes
+    expect(b).toEqual(oldAnimBudget);
+    expect(animatedBytes(c, d, "main", b)).toBe(4 * 196 * 196 * 4); // three keys, one size
+    c.pages.main.keys["3"] = { image: "bars", label: "Hi", action: {} }; // with a label: 100 px
+    expect(animatedBytes(c, d, "main", b)).toBe(4 * (196 * 196 + 100 * 100) * 4);
+    expect(animatedBytes(c, d, "other", b)).toBe(0);
+  });
+
+  it("counts what animates on newer devices: a byte a pixel and a palette", async () => {
+    const d = await deck();
+    const data = gif.toString("base64");
+    const c: Config = {
+      version: 1,
+      home: "main",
+      pages: { main: { keys: { "0": { image: "bars", action: {} } } } },
+      images: { bars: data },
+    };
+    const b = animBudget({ anim_bytes: 8 << 20 });
+    expect(b).toEqual({ bytes: 8 << 20, perPixel: 1 });
+    expect(animatedBytes(c, d, "main", b)).toBe(d.animBytes(data, 196, 196, 1));
+    expect(d.animBytes(data, 196, 196, 1)).toBeGreaterThanOrEqual(4 * 196 * 196);
+    expect(d.animBytes(data, 196, 196, 1)).toBeLessThan(4 * 196 * 196 * 2);
+    // a picture icon shown while on: 120 px, counted too
+    c.icons = { "pic-bars": { png: data } };
+    c.pages.main.keys["1"] = { label: "Off", action: {}, on: { icon: "pic-bars", label: "" } };
+    expect(animatedBytes(c, d, "main", b)).toBe(d.animBytes(data, 196, 196, 1) + d.animBytes(data, 100, 100, 1)); // its label stays: 100 px
+    c.pages.main.keys["1"] = { action: {}, on: { icon: "pic-bars" } };
+    expect(animatedBytes(c, d, "main", b)).toBe(d.animBytes(data, 196, 196, 1) + d.animBytes(data, 120, 120, 1));
+    // leaving out a look being replaced
+    expect(animatedBytes(c, d, "main", b, c.pages.main.keys["1"].on)).toBe(d.animBytes(data, 196, 196, 1));
+  });
+
+  it("shares the budget: what's left, or 2 frames", () => {
+    const b = { bytes: 100000, perPixel: 1 } as const;
+    expect(share(b, 30000, 100, 100).bytes).toBe(70000);
+    expect(share(b, 95000, 100, 100).bytes).toBe(2 * 100 * 100 + 1024);
+    expect(share(oldAnimBudget, 8 << 20, 100, 100).bytes).toBe(2 * 100 * 100 * 4);
   });
 
   it("finds label characters the device can't draw", async () => {

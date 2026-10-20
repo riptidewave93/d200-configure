@@ -4,14 +4,22 @@
 // must. Saving drops the images no key uses.
 
 import type { Config, Look } from "./config";
-import type { Deck, Fitted } from "./deck";
+import type { AnimBudget, Deck, Fitted } from "./deck";
 
 // The largest the device draws a picture icon (render: 120 px on the wide key).
 export const iconSide = 120;
 
-// What the device animates on a page, in frame pixels at the size it draws
-// them (render.MaxAnimPixels); past it, a GIF shows its first frame.
-export const maxAnimPixels = 2 << 20;
+// A page's budget for animated GIFs on devices that don't report anim_bytes:
+// 2 M pixels of frames as drawn, 4 bytes each (render.MaxAnimPixels). Past
+// its budget, a GIF shows its first frame.
+export const oldAnimBudget: AnimBudget = { bytes: 4 * (2 << 20), perPixel: 4 };
+
+// animBudget is a page's budget for animated GIFs on a device with these
+// limits: devices that report anim_bytes keep frames a byte a pixel.
+export function animBudget(limits?: Record<string, number>): AnimBudget {
+  const bytes = limits?.anim_bytes;
+  return bytes ? { bytes, perPixel: 1 } : oldAnimBudget;
+}
 
 // Formats the device reads; others are turned into PNG here first.
 const deviceTypes = ["image/png", "image/jpeg", "image/gif"];
@@ -77,33 +85,57 @@ export function usedImages(c: Config): Set<string> {
   return new Set(looks(c).flatMap((l) => (l.image ? [l.image] : [])));
 }
 
-const infos = new Map<string, { width: number; height: number; frames: number } | null>();
+const sizes = new Map<string, Map<string, number>>();
 
-// animatedPixels estimates the frame pixels the device keeps to animate a
-// page's GIFs, each scaled to where it's shown: images to their key,
-// picture icons to icon size. One picture shown at one size counts once.
-export function animatedPixels(c: Config, deck: Deck, page: string): number {
+// bytes is what GIF data drawn to fit w x h takes of the budget; 0 if it's
+// still.
+function bytes(data: string, w: number, h: number, budget: AnimBudget, deck: Deck): number {
+  if (!data.startsWith("R0lGOD")) return 0;
+  let m = sizes.get(data);
+  if (!m) sizes.set(data, (m = new Map()));
+  const k = `${w}x${h}x${budget.perPixel}`;
+  if (!m.has(k)) m.set(k, deck.animBytes(data, w, h, budget.perPixel));
+  return m.get(k)!;
+}
+
+// lit is a key's look while on, as the device draws it (deck's lit).
+function lit(b: Look, on: Look): Look {
+  const l = { ...b };
+  if (on.icon) [l.icon, l.image] = [on.icon, undefined];
+  if (on.image) [l.image, l.icon] = [on.image, undefined];
+  if (on.label) l.label = on.label;
+  return l;
+}
+
+// animatedBytes sums what a page's animated GIFs take of the animation
+// budget, each in the box the device draws it to fit (render.PictureBox).
+// One picture at one size counts once. Without skip's picture: one about to
+// be replaced.
+export function animatedBytes(c: Config, deck: Deck, page: string, budget: AnimBudget, skip?: Look): number {
   const seen = new Map<string, number>();
-  const count = (id: string, data: string | undefined, w: number, h: number) => {
-    if (!data?.startsWith("R0lGOD")) return;
-    const k = `${id}:${data.length}`;
-    if (!infos.has(k)) infos.set(k, deck.imageInfo(data));
-    const i = infos.get(k);
-    if (!i || i.frames < 2) return;
-    const s = Math.min(w / i.width, h / i.height);
-    seen.set(`${id}@${w}x${h}`, i.frames * Math.round(i.width * s) * Math.round(i.height * s));
-  };
-  for (const p of [c.pages[page]].filter(Boolean)) {
-    for (const [n, b] of Object.entries(p.keys)) {
-      const k = deck.layout.keys[+n];
-      if (!k) continue;
-      for (const l of b.on ? [b, b.on] : [b]) {
-        if (l.image) count(`image:${l.image}`, c.images?.[l.image], k.w, k.h);
-        else if (l.icon) count(`icon:${l.icon}`, c.icons?.[l.icon]?.png, iconSide, iconSide);
-      }
+  const bare = (l: Look): Look => (l === skip ? { ...l, image: undefined, icon: undefined } : l);
+  for (const [n, b] of Object.entries(c.pages[page]?.keys ?? {})) {
+    const base = bare(b);
+    for (const l of b.on ? [base, lit(base, bare(b.on))] : [base]) {
+      const label = !!l.label?.replace(/\n/g, " ");
+      const [id, data] = l.image
+        ? [l.image, c.images?.[l.image]]
+        : l.icon && c.icons?.[l.icon]?.png
+          ? [`\0${l.icon}`, c.icons[l.icon].png]
+          : [];
+      const box = data && deck.pictureBox(+n, !!l.image, label);
+      if (box) seen.set(`${id}@${box[0]}x${box[1]}`, bytes(data!, box[0], box[1], budget, deck));
     }
   }
   let total = 0;
   for (const v of seen.values()) total += v;
   return total;
+}
+
+// share is the budget a GIF added to a page, drawn to fit w x h, gets:
+// what the others leave, so they all move. With too little left for 2
+// frames it gets 2, and the page warns it's over.
+export function share(budget: AnimBudget, others: number, w: number, h: number): AnimBudget {
+  const two = 2 * w * h * budget.perPixel + (budget.perPixel === 1 ? 4 * 256 : 0);
+  return { ...budget, bytes: Math.max(budget.bytes - others, two) };
 }

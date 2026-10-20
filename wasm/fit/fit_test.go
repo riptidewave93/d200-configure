@@ -2,6 +2,7 @@ package fit
 
 import (
 	"bytes"
+	"encoding/base64"
 	"image"
 	"image/color"
 	"image/gif"
@@ -11,10 +12,15 @@ import (
 	"testing"
 
 	"github.com/riptidewave93/d200-deck/deck"
+	"github.com/riptidewave93/d200-deck/render"
 )
 
-var imageBox = Box{Width: 196, Height: 196, Bytes: deck.MaxImageBytes}
-var iconBox = Box{Width: 120, Height: 120, Bytes: deck.MaxIconBytes}
+// boxes on a device that doesn't report anim_bytes
+var imageBox = Box{Width: 196, Height: 196, Bytes: deck.MaxImageBytes, Anim: OldAnim}
+var iconBox = Box{Width: 120, Height: 120, Bytes: deck.MaxIconBytes, Anim: OldAnim}
+
+// what a newer device gives a page: a byte a pixel
+var byteAnim = Anim{Bytes: deck.MaxAnimBytes, PerPixel: 1}
 
 func pngOf(img image.Image) []byte {
 	var buf bytes.Buffer
@@ -223,6 +229,54 @@ func sad(a, b []uint8) int {
 		d += abs(int(a[j]) - int(b[j]))
 	}
 	return d
+}
+
+func TestByteAPixelBudget(t *testing.T) {
+	// a GIF an older device can't animate across a key moves on a newer one
+	box := imageBox
+	box.Anim = byteAnim
+	if p, err := Fit(spinner(64, 80), box); err != nil || p.Changed {
+		t.Fatalf("it should stay as it is: %v %+v", err, p)
+	}
+	// with a share of the budget, frames go until it fits
+	box.Anim.Bytes = 500 << 10
+	p, err := Fit(spinner(64, 80), box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the device counts it as the fit did: one palette
+	got := render.AnimBytes(base64.StdEncoding.EncodeToString(p.Data), 196, 196)
+	if p.Frames < 2 || got != box.cost(p.Frames, p.Width, p.Height) || got > box.Anim.Bytes {
+		t.Fatalf("%d frames take %d bytes, budget %d", p.Frames, got, box.Anim.Bytes)
+	}
+}
+
+func TestCountsAsTheDevice(t *testing.T) {
+	data := base64.StdEncoding.EncodeToString(spinner(64, 20))
+	if got := AnimBytes(data, 196, 196, 1); got != render.AnimBytes(data, 196, 196) || got == 0 {
+		t.Fatalf("a byte a pixel: %d", got)
+	}
+	if got := AnimBytes(data, 196, 196, 4); got != 20*196*196*4 {
+		t.Fatalf("4 bytes a pixel: %d", got)
+	}
+	if AnimBytes(base64.StdEncoding.EncodeToString(pngOf(photo(8, 8))), 196, 196, 4) != 0 {
+		t.Fatal("a still picture takes none")
+	}
+}
+
+func TestSmallShares(t *testing.T) {
+	// an older device's share of 5 full-key frames
+	box := imageBox
+	box.Anim.Bytes = 5 * 196 * 196 * 4
+	p, err := Fit(spinner(64, 80), box)
+	if err != nil || p.Frames > 5 || p.Frames < 2 {
+		t.Fatalf("got %v %+v", err, p)
+	}
+	// too small a share for 2 frames: it stands still, but fits
+	box.Anim = Anim{Bytes: 1, PerPixel: 1}
+	if p, err := Fit(spinner(64, 80), box); err != nil || p.Frames != 1 {
+		t.Fatalf("got %v %+v", err, p)
+	}
 }
 
 func TestStoredChangesPlayBack(t *testing.T) {

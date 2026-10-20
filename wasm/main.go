@@ -9,9 +9,14 @@
 //	  as embed does), and the icon names it lacks
 //	renderKey(i, buttonJSON, on) -> {width, height, data: RGBA pixels, next}, or null;
 //	  next is when the key's animation shows its next frame (Unix ms), or 0
-//	fitImage(bytes, width, height, maxBytes) -> JSON {data (base64), width, height, frames,
-//	  dropped, changed} or {error}: a picture fitted to the device (see package fit)
-//	imageInfo(base64) -> JSON {width, height, frames} or {error}
+//	fitImage(bytes, width, height, maxBytes, animBytes, perPixel) -> JSON {data (base64), width,
+//	  height, frames, dropped, changed} or {error}: a picture fitted to the device (see package
+//	  fit), an animated GIF within animBytes of animation budget, kept perPixel bytes a pixel
+//	animBytes(base64, width, height, perPixel) -> what a GIF drawn to fit width x height takes
+//	  of a page's animation budget, kept perPixel bytes a pixel (1: render.AnimBytes); 0 if
+//	  it's still
+//	pictureBox(i, image, label) -> [width, height]: the box a picture on key i is drawn to fit
+//	  (render.PictureBox), or null for no such key
 //	newPage(): the preview shows another page (render.NewPage: each page has its own
 //	  animation budget)
 //	missingGlyphs(buttonJSON) -> the label characters its font lacks, as a string
@@ -52,12 +57,21 @@ var renderer = render.New(&deck.Config{})
 
 func main() {
 	js.Global().Set("deck", map[string]any{
-		"validate":      js.FuncOf(validate),
-		"embed":         js.FuncOf(embed),
-		"setAssets":     js.FuncOf(setAssets),
-		"renderKey":     js.FuncOf(renderKey),
-		"fitImage":      js.FuncOf(fitImage),
-		"imageInfo":     js.FuncOf(imageInfo),
+		"validate":  js.FuncOf(validate),
+		"embed":     js.FuncOf(embed),
+		"setAssets": js.FuncOf(setAssets),
+		"renderKey": js.FuncOf(renderKey),
+		"fitImage":  js.FuncOf(fitImage),
+		"animBytes": js.FuncOf(func(_ js.Value, args []js.Value) any {
+			return fit.AnimBytes(args[0].String(), args[1].Int(), args[2].Int(), args[3].Int())
+		}),
+		"pictureBox": js.FuncOf(func(_ js.Value, args []js.Value) any {
+			if i := args[0].Int(); i >= 0 && i < deck.KeyCount {
+				w, h := render.PictureBox(i, args[1].Bool(), args[2].Bool())
+				return []any{w, h}
+			}
+			return nil
+		}),
 		"newPage":       js.FuncOf(func(js.Value, []js.Value) any { renderer.NewPage(); return nil }),
 		"missingGlyphs": js.FuncOf(missingGlyphs),
 		"checkFont":     js.FuncOf(checkFont),
@@ -209,10 +223,13 @@ func bytesOf(v js.Value) []byte {
 }
 
 func fitImage(_ js.Value, args []js.Value) any {
-	if len(args) != 4 {
-		return marshal(map[string]any{"error": "fitImage needs bytes, width, height and maxBytes"})
+	if len(args) != 6 {
+		return marshal(map[string]any{"error": "fitImage needs bytes, width, height, maxBytes, animBytes and perPixel"})
 	}
-	p, err := fit.Fit(bytesOf(args[0]), fit.Box{Width: args[1].Int(), Height: args[2].Int(), Bytes: args[3].Int()})
+	p, err := fit.Fit(bytesOf(args[0]), fit.Box{
+		Width: args[1].Int(), Height: args[2].Int(), Bytes: args[3].Int(),
+		Anim: fit.Anim{Bytes: args[4].Int(), PerPixel: args[5].Int()},
+	})
 	if err != nil {
 		return marshal(map[string]any{"error": err.Error()})
 	}
@@ -220,18 +237,6 @@ func fitImage(_ js.Value, args []js.Value) any {
 		"data": base64.StdEncoding.EncodeToString(p.Data), "width": p.Width, "height": p.Height,
 		"frames": p.Frames, "dropped": p.Dropped, "changed": p.Changed,
 	})
-}
-
-func imageInfo(_ js.Value, args []js.Value) any {
-	b, err := base64.StdEncoding.DecodeString(args[0].String())
-	if err != nil {
-		return marshal(map[string]any{"error": "not base64"})
-	}
-	w, h, frames, err := fit.Info(b)
-	if err != nil {
-		return marshal(map[string]any{"error": err.Error()})
-	}
-	return marshal(map[string]any{"width": w, "height": h, "frames": frames})
 }
 
 func iconPath(_ js.Value, args []js.Value) any {

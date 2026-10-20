@@ -23,10 +23,33 @@ import (
 	"github.com/riptidewave93/d200-deck/render"
 )
 
-// Box is the most a picture can be: its size on the device, and its bytes.
+// Box is the most a picture can be: its size on the device, its bytes, and
+// for an animated GIF what it may take of the page's animation budget.
 type Box struct {
 	Width, Height int
 	Bytes         int
+	Anim          Anim
+}
+
+// Anim is animation budget: Bytes in all, frames kept PerPixel bytes a
+// pixel at the size drawn. Devices that report anim_bytes keep a byte a
+// pixel, plus a palette; older ones 4 (OldAnim).
+type Anim struct{ Bytes, PerPixel int }
+
+// OldAnim is the budget of a page on devices that don't report anim_bytes.
+var OldAnim = Anim{Bytes: 4 * MaxAnimPixels, PerPixel: 4}
+
+// What a fitted GIF takes on devices that keep a byte a pixel: its colours
+// fit one palette.
+const paletteBytes = 4 * 256
+
+// cost is what frames of w x h take on the device, drawn to fit the box.
+func (box Box) cost(frames, w, h int) int {
+	dw, dh := render.FitSize(w, h, box.Width, box.Height)
+	if box.Anim.PerPixel == 1 {
+		return frames*dw*dh + paletteBytes
+	}
+	return frames * dw * dh * box.Anim.PerPixel
 }
 
 // Picture is a fitted picture.
@@ -44,9 +67,9 @@ const minSide = 16
 // The fewest frames kept before shrinking an animation instead.
 const minFrames = 12
 
-// MaxAnimPixels is what the device animates on a page, in frame pixels at
-// the size it draws them; past it, a GIF shows its first frame. A fitted GIF
-// stays within it, so it moves.
+// MaxAnimPixels is what devices without anim_bytes animate on a page, in
+// frame pixels at the size drawn, 4 bytes each; past their budget, GIFs
+// show their first frame. A fitted GIF stays within its budget, so it moves.
 const MaxAnimPixels = render.MaxAnimPixels
 
 var errTooBig = errors.New("too detailed to fit, even made smaller")
@@ -99,7 +122,9 @@ func Fit(b []byte, box Box) (Picture, error) {
 }
 
 // animated fits an animated GIF: scaled, with fewer frames if it has too
-// many (see pick), and only what changes stored for each frame.
+// many (see pick), and only what changes stored for each frame. The device
+// scales frames up to fill the box, so only fewer frames save animation
+// budget.
 func animated(b []byte, g *gif.GIF, box Box) (Picture, error) {
 	w0, h0 := g.Config.Width, g.Config.Height
 	frames, delays := composite(g)
@@ -108,13 +133,12 @@ func animated(b []byte, g *gif.GIF, box Box) (Picture, error) {
 	for i, f := range frames {
 		thumbs[i] = resize(f, thumbSide, thumbSide).Pix
 	}
-	// the device draws it scaled to fit the box, larger too
-	dw, dh := size(w0, h0, min(float64(box.Width)/float64(w0), float64(box.Height)/float64(h0)))
 	tooMany := func(frames, w, h int) bool {
-		return frames > deck.MaxFrames || frames*w*h > deck.MaxGIFPixels || frames*dw*dh > MaxAnimPixels
+		return frames > deck.MaxFrames || frames*w*h > deck.MaxGIFPixels || box.cost(frames, w, h) > box.Anim.Bytes
 	}
 	step := 1
-	if w0 <= box.Width && h0 <= box.Height && len(b) <= box.Bytes && !tooMany(n, w0, h0) {
+	fits := n <= deck.MaxFrames && n*w0*h0 <= deck.MaxGIFPixels && animBytes(b, n, w0, h0, box) <= box.Anim.Bytes
+	if w0 <= box.Width && h0 <= box.Height && len(b) <= box.Bytes && fits {
 		return Picture{Data: b, Width: w0, Height: h0, Frames: n}, check(b)
 	}
 	for s := scale(w0, h0, box); ; {
@@ -122,7 +146,7 @@ func animated(b []byte, g *gif.GIF, box Box) (Picture, error) {
 		if w < minSide && h < minSide {
 			return Picture{}, errTooBig
 		}
-		for tooMany(kept(n, step), w, h) {
+		for kept(n, step) > 1 && tooMany(kept(n, step), w, h) {
 			step++
 		}
 		k := kept(n, step)
@@ -140,6 +164,31 @@ func animated(b []byte, g *gif.GIF, box Box) (Picture, error) {
 }
 
 func kept(n, step int) int { return (n + step - 1) / step }
+
+// animBytes is what GIF b, of n frames w x h, takes on the device as it is.
+func animBytes(b []byte, n, w, h int, box Box) int {
+	if box.Anim.PerPixel == 1 {
+		return render.AnimBytes(base64.StdEncoding.EncodeToString(b), box.Width, box.Height)
+	}
+	return box.cost(n, w, h)
+}
+
+// AnimBytes is what GIF data (base64) drawn to fit w x h takes of a page's
+// animation budget, kept perPixel bytes a pixel; 0 if it's still.
+func AnimBytes(data string, w, h, perPixel int) int {
+	if perPixel == 1 {
+		return render.AnimBytes(data, w, h)
+	}
+	b, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return 0
+	}
+	gw, gh, n, err := Info(b)
+	if err != nil || n < 2 {
+		return 0
+	}
+	return Box{Width: w, Height: h, Anim: Anim{PerPixel: perPixel}}.cost(n, gw, gh)
+}
 
 // The side of the thumbnails frames are compared by, and how unlike two
 // thumbnails must be, on average per colour channel, to look different.

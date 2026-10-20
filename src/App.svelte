@@ -15,7 +15,7 @@
   import { forDevice, newer, runnable, unsupportedMessage } from "./lib/features";
   import { fontText, growFonts } from "./lib/fonts";
   import { modelFor } from "./lib/models";
-  import { animatedPixels, maxAnimPixels } from "./lib/pictures";
+  import { animBudget, animatedBytes } from "./lib/pictures";
   import { browserWarning, supported } from "./lib/webhid";
 
   const device = new Device();
@@ -80,7 +80,11 @@
   }
   const linux = navigator.userAgent.includes("Linux") && !navigator.userAgent.includes("Android");
   // the device animates GIFs only up to so many frame pixels
-  let tooMuchMotion = $derived(!!deck && !!doc.config && animatedPixels(doc.config, deck, doc.page) > maxAnimPixels);
+  let tooMuchMotion = $derived.by(() => {
+    if (!deck || !doc.config) return false;
+    const budget = animBudget(takes?.limits);
+    return animatedBytes(doc.config, deck, doc.page, budget) > budget.bytes;
+  });
 
   let connected = $derived(device.state === "ready" || device.state === "busy");
   let status = $derived(
@@ -397,8 +401,7 @@
         </div>
         {#if tooMuchMotion}
           <p class="warn small motion">
-            The device can't animate this many moving pictures on one page: some will stand still. Use fewer or
-            smaller GIFs.
+            Too much animation on this page: some pictures will stand still.
           </p>
         {/if}
         {#if doc.key === null}
