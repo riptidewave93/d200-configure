@@ -85,7 +85,8 @@ export function usedFonts(c: Config): Set<string> {
 // and extra.
 export async function addCatalogFont(deck: Deck, c: Config, id: string, extra: string) {
   const b = await catalogSource(id);
-  (c.fonts ??= {})[id] = deck.subsetFont(b, fontText(c, id, extra));
+  c.fonts ??= {};
+  c.fonts[id] = deck.subsetFont(b, fontText(c, id, extra));
 }
 
 // addFontFile puts a font file in the config, whole if it fits, and gives
@@ -96,7 +97,8 @@ export async function addFontFile(deck: Deck, c: Config, f: File, extra: string)
   if (b.length <= MaxFontBytes) {
     const why = deck.checkFont(b);
     if (why) throw new Error(why);
-    (c.fonts ??= {})[id] = toBase64(b);
+    c.fonts ??= {};
+    c.fonts[id] = toBase64(b);
     return { id, cut: false };
   }
   let data: string;
@@ -108,7 +110,8 @@ export async function addFontFile(deck: Deck, c: Config, f: File, extra: string)
     throw err;
   }
   sources.set(id, b);
-  (c.fonts ??= {})[id] = data;
+  c.fonts ??= {};
+  c.fonts[id] = data;
   return { id, cut: true };
 }
 

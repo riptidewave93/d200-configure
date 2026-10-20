@@ -99,7 +99,8 @@
   async function setEmoji(e: Emoji) {
     emojiError = "";
     const id = emojiID(e.hex);
-    const icons = (doc.config!.icons ??= {});
+    doc.config!.icons ??= {};
+    const icons = doc.config!.icons;
     if (!icons[id]?.png) {
       try {
         let png = await emojiPNG(e.char);
@@ -149,14 +150,16 @@
         const [w, h] = [Math.min(k.w, side), Math.min(k.h, side)];
         const fit = d.fitImage(bytes, w, h, f?.limits.image_bytes ?? MaxImageBytes, share(budget, others, w, h));
         const id = pictureID(file.name, Object.keys(c.images ?? {}));
-        (c.images ??= {})[id] = fit.data;
+        c.images ??= {};
+        c.images[id] = fit.data;
         setImage(id);
         pictureNote = fitNote(fit);
       } else {
         const anim = share(budget, others, iconSide, iconSide);
         const fit = d.fitImage(bytes, iconSide, iconSide, f?.limits.icon_bytes ?? MaxIconBytes, anim);
         const id = pictureID(file.name, Object.keys(c.icons ?? {}), "pic-");
-        (c.icons ??= {})[id] = { png: fit.data };
+        c.icons ??= {};
+        c.icons[id] = { png: fit.data };
         setIcon(id);
         pictureNote = fitNote(fit);
       }
