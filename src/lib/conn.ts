@@ -13,12 +13,11 @@ import {
   MaxConfigData,
   ConfigReadGzip,
   MaxConfigRead,
-  MaxConfigReadLarge,
   MaxMessage,
+  RawInSize,
   type Settings,
   Status,
   type Time,
-  VersionLarge,
 } from "./proto";
 import { gunzip, gzip } from "./gzip";
 
@@ -40,6 +39,10 @@ export class DeviceError extends Error {
     super(message);
   }
 }
+
+// TooOld is what a device older than the site's protocol gets: its reports
+// are smaller.
+export const TooOld = "This device's software is too old for this site. Update it first.";
 
 export type EventListener = (code: number, payload: Uint8Array) => void;
 
@@ -69,8 +72,6 @@ export class Conn {
   private synced = false;
   private listeners = new Set<EventListener>();
   private closed = false;
-  // the device's protocol, from hello: 4 moves configs gzipped
-  protocol = 0;
 
   constructor(
     private t: Transport,
@@ -92,6 +93,11 @@ export class Conn {
   }
 
   private receive(b: Uint8Array) {
+    if (b.length < RawInSize) {
+      this.pending?.reject(new Error(TooOld));
+      this.pending = null;
+      return;
+    }
     let p;
     try {
       p = decodeReply(b);
@@ -168,13 +174,7 @@ export class Conn {
   }
 
   async hello() {
-    const h = await this.requestJSON<Hello>(Cmd.Hello);
-    this.protocol = h.protocol;
-    return h;
-  }
-
-  private get gzipped() {
-    return this.protocol >= VersionLarge;
+    return this.requestJSON<Hello>(Cmd.Hello);
   }
 
   host() {
@@ -213,22 +213,21 @@ export class Conn {
     return this.requestJSON<ConfigInfo>(Cmd.ConfigInfo, gzip ? { gzip: true } : undefined);
   }
 
-  // readConfig reads the config file and names its version. Protocol 4
-  // devices send it gzipped, once they have it gzipped: until then (a few
-  // seconds after a start or a plain upload) there's no gzip_size, and it
-  // comes as it is.
+  // readConfig reads the config file and names its version. The device
+  // sends it gzipped once it has it gzipped: until then (a few seconds after
+  // a start or a plain upload) there's no gzip_size, and it comes as it is.
   async readConfig(progress?: Progress): Promise<{ data: Uint8Array; info: ConfigInfo }> {
-    const info = await this.configInfo(this.gzipped);
-    const gz = this.gzipped && info.gzip_size !== undefined;
+    const info = await this.configInfo(true);
+    const gz = info.gzip_size !== undefined;
     const total = gz ? info.gzip_size! : info.size;
     const raw = new Uint8Array(total);
     let n = 0;
     progress?.(0, total);
     while (n < total) {
-      const req = new Uint8Array(this.gzipped ? 7 : 6);
+      const req = new Uint8Array(7);
       const v = new DataView(req.buffer);
       v.setUint32(0, n, true);
-      v.setUint16(4, this.gzipped ? MaxConfigReadLarge : MaxConfigRead, true);
+      v.setUint16(4, MaxConfigRead, true);
       if (gz) req[6] = ConfigReadGzip;
       const part = await this.request(Cmd.ConfigRead, req);
       if (part.length === 0) break;
@@ -245,10 +244,9 @@ export class Conn {
 
   // writeConfig replaces the config with data, if it's still version base
   // ("" replaces any). If it gives keys new actions, the device asks first.
-  // Protocol 4 devices take it gzipped once they say its gzip_size (as
-  // readConfig).
+  // The device takes it gzipped once it says its gzip_size (as readConfig).
   async writeConfig(base: string, data: Uint8Array, progress?: Progress, asking?: Asking): Promise<ConfigInfo> {
-    const gz = this.gzipped && (await this.configInfo(true)).gzip_size !== undefined;
+    const gz = (await this.configInfo(true)).gzip_size !== undefined;
     const sent = gz ? await gzip(data) : data;
     const start = {
       base,

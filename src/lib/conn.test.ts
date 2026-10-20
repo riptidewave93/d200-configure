@@ -21,13 +21,6 @@ describe("framing", () => {
     expect(new Uint8Array(parts.flatMap((p) => [...p.payload]))).toEqual(payload);
   });
 
-  it("reads 1024-byte reports with a 2-byte length", () => {
-    const payload = new Uint8Array(1500).map((_, i) => i);
-    const parts = encodeReply(9, 0, payload, 1024).map(decodeReply);
-    expect(parts.map((p) => p.payload.length)).toEqual([1018, 482]);
-    expect(new Uint8Array(parts.flatMap((p) => [...p.payload]))).toEqual(payload);
-  });
-
   it("sends one report for an empty reply", () => {
     const [p] = encodeReply(7, 3).map(decodeReply);
     expect(p).toMatchObject({ seq: 7, status: 3, first: true, more: false });
@@ -113,11 +106,8 @@ describe("Conn", () => {
   });
 });
 
-// Protocol 3 moves configs as they are in 64-byte reports; 4 gzips them,
-// in 1024-byte reports.
-describe.each([3, 4])("config, protocol %i", (protocol) => {
+describe("config", () => {
   async function open(dev = new FakeDevice()) {
-    dev.hello.protocol = protocol;
     const c = connect(dev);
     await c.conn.hello();
     return c;
@@ -132,7 +122,7 @@ describe.each([3, 4])("config, protocol %i", (protocol) => {
     const { data, info } = await conn.readConfig((n) => seen.push(n));
     expect(JSON.parse(new TextDecoder().decode(data))).toEqual(big);
     expect(info.rev).toBe(await sha256(dev.config));
-    expect(seen.at(-1)).toBe(protocol === 4 ? info.gzip_size : info.size);
+    expect(seen.at(-1)).toBe(info.gzip_size);
   });
 
   it("reads the config as it is while the device is still gzipping it", async () => {
@@ -173,8 +163,7 @@ describe.each([3, 4])("config, protocol %i", (protocol) => {
     const data = new TextEncoder().encode(JSON.stringify(big));
     await conn.writeConfig("", data);
     expect(dev.config).toEqual(data);
-    if (protocol === 4) expect(sent).toBeLessThan(data.length / 10);
-    else expect(sent).toBe(data.length);
+    expect(sent).toBeLessThan(data.length / 10);
   });
 
   it("writes the config and sends config-changed", async () => {

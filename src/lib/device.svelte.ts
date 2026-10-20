@@ -1,13 +1,13 @@
 // The connected device: connecting and reconnecting, reading and saving its
 // config, and what it says on its own (events).
 
-import { Conn, DeviceError, type Progress, type Transport } from "./conn";
+import { Conn, DeviceError, TooOld, type Progress, type Transport } from "./conn";
 import {
   Event,
   Status,
   TimePeriod,
+  MinVersion,
   Version,
-  VersionMax,
   type ConfigInfo,
   type Hello,
   type HostInfo,
@@ -161,8 +161,8 @@ export class Device {
         this.state = before;
         return false;
       }
-      if (hello.protocol < Version) throw new Error("This device's software is too old for this site. Update it first.");
-      if (hello.protocol > VersionMax) throw new Error("This device's software is newer than this site. Reload the page.");
+      if (hello.protocol < MinVersion) throw new Error(TooOld);
+      if (hello.protocol > Version) throw new Error("This device's software is newer than this site. Reload the page.");
       this.hello = hello;
       this.serial = hello.serial;
       if (this.hid) remember(hello.serial);
