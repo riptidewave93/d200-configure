@@ -11,6 +11,7 @@
   import { load, type Deck } from "./lib/deck";
   import { Device, message } from "./lib/device.svelte";
   import { Doc } from "./lib/doc.svelte";
+  import { fontText, growFonts } from "./lib/fonts";
   import { modelFor } from "./lib/models";
   import { animatedPixels, maxAnimPixels } from "./lib/pictures";
   import { browserWarning, supported } from "./lib/webhid";
@@ -206,6 +207,17 @@
     };
     addEventListener("beforeunload", leave);
     return () => removeEventListener("beforeunload", leave);
+  });
+
+  // cut-down fonts gain the characters labels gain
+  let fontNeeds = $derived(
+    Object.keys(doc.config?.fonts ?? {})
+      .map((id) => `${id}:${fontText(doc.config!, id)}`)
+      .join("|"),
+  );
+  $effect(() => {
+    void fontNeeds;
+    if (deck && doc.config) growFonts(deck, doc.config).catch(() => {});
   });
 
   // notices fade on their own; errors stay until the next action

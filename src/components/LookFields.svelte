@@ -4,6 +4,7 @@
   import { emojiID, emojiPNG, type Emoji } from "../lib/emoji";
   import { app } from "../lib/context";
   import { set } from "../lib/edit";
+  import { addCatalogFont, addFontFile, catalogFonts, fontName } from "../lib/fonts";
   import { fitNote, iconSide, pictureID, readPicture } from "../lib/pictures";
   import ColorField from "./ColorField.svelte";
   import IconField from "./IconField.svelte";
@@ -16,6 +17,57 @@
   let images = $derived(Object.keys(doc.config?.images ?? {}).sort());
   let customFonts = $derived(Object.keys(doc.config?.fonts ?? {}).sort());
   let builtinFonts = $derived(deck()?.names.fonts ?? []);
+  // catalog fonts not in the config yet
+  let moreFonts = $derived(catalogFonts.filter((f) => !doc.config?.fonts?.[f.id]));
+
+  // A catalog font goes in the config when it's picked; "From a file…" asks
+  // for one.
+  const fromFile = "\u0000file";
+  let fontInput: HTMLInputElement;
+  let fontWorking = $state(false);
+  let fontNote = $state("");
+  let fontError = $state("");
+
+  async function pickFont(e: Event & { currentTarget: HTMLSelectElement }) {
+    const v = e.currentTarget.value;
+    const d = deck();
+    fontNote = fontError = "";
+    if (v === fromFile) {
+      e.currentTarget.value = look.font ?? "";
+      fontInput.click();
+      return;
+    }
+    if (d && v && !doc.config?.fonts?.[v] && !builtinFonts.includes(v)) {
+      fontWorking = true;
+      try {
+        await addCatalogFont(d, doc.config!, v, look.label ?? "");
+      } catch (err) {
+        fontError = err instanceof Error ? err.message : String(err);
+        e.currentTarget.value = look.font ?? "";
+        return;
+      } finally {
+        fontWorking = false;
+      }
+    }
+    set(look, "font", v);
+  }
+
+  async function addFont(f: File | undefined) {
+    const d = deck();
+    if (!f || !d) return;
+    fontNote = fontError = "";
+    fontWorking = true;
+    try {
+      const { id, cut } = await addFontFile(d, doc.config!, f, look.label ?? "");
+      set(look, "font", id);
+      if (cut) fontNote = "Made smaller to fit: it keeps only the characters labels use, until the page is closed.";
+    } catch (err) {
+      fontError = `That font can't be used: ${err instanceof Error ? err.message : err}.`;
+    } finally {
+      fontWorking = false;
+      fontInput.value = "";
+    }
+  }
 
   // Changing one of icon and image clears the other: a key shows one.
   function setIcon(v: string) {
@@ -91,8 +143,14 @@
     }
   }
 
-  // characters the label's font doesn't have show as boxes
-  let missing = $derived(look.label ? (deck()?.missingGlyphs(look) ?? "") : "");
+  // characters the label's font doesn't have show as boxes; a font in the
+  // config is asked directly, as it gains characters when labels do
+  let missing = $derived.by(() => {
+    const d = deck();
+    if (!d || !look.label) return "";
+    const font = look.font ? doc.config?.fonts?.[look.font] : undefined;
+    return font ? d.fontLacks(font, look.label) : d.missingGlyphs(look);
+  });
 
   // the device keeps up to 32 characters on up to 3 lines
   let labelError = $derived.by(() => {
@@ -145,13 +203,33 @@
 <div class="row">
   <label class="grow">
     <span>Font</span>
-    <select bind:value={() => look.font ?? "", (v) => set(look, "font", v)}>
+    <select value={look.font ?? ""} onchange={pickFont} disabled={fontWorking}>
       <option value="">Default</option>
-      {#each builtinFonts as f (f)}<option value={f}>{f}</option>{/each}
-      {#each customFonts as f (f)}<option value={f}>{f}</option>{/each}
+      <optgroup label="On the device">
+        {#each builtinFonts as f (f)}<option value={f}>{f}</option>{/each}
+      </optgroup>
+      {#if customFonts.length}
+        <optgroup label="In this config">
+          {#each customFonts as f (f)}<option value={f}>{fontName(f)}</option>{/each}
+        </optgroup>
+      {/if}
+      <optgroup label="More fonts">
+        {#each moreFonts as f (f.id)}<option value={f.id}>{f.name}</option>{/each}
+        <option value={fromFile}>From a file…</option>
+      </optgroup>
     </select>
   </label>
 </div>
+<input
+  type="file"
+  accept=".ttf,.otf,.woff,.woff2,font/*"
+  hidden
+  bind:this={fontInput}
+  onchange={(e) => addFont(e.currentTarget.files?.[0])}
+/>
+{#if fontWorking}<p class="muted small">Adding the font…</p>{/if}
+{#if fontNote}<p class="muted small">{fontNote}</p>{/if}
+{#if fontError}<p class="bad small">{fontError}</p>{/if}
 
 <div class="row colors">
   <ColorField label="Text and icon" value={look.color} fallback="#e8e8e8" onchange={(v) => set(look, "color", v)} />

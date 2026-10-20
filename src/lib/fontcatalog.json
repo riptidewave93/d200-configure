@@ -1,0 +1,22 @@
+[
+  { "id": "inter", "name": "Inter", "family": "Inter", "weight": 400, "license": "ofl/inter" },
+  { "id": "inter-bold", "name": "Inter Bold", "family": "Inter", "weight": 700, "license": "ofl/inter" },
+  { "id": "roboto", "name": "Roboto", "family": "Roboto", "weight": 400, "license": "ofl/roboto" },
+  { "id": "roboto-bold", "name": "Roboto Bold", "family": "Roboto", "weight": 700, "license": "ofl/roboto" },
+  { "id": "noto-sans", "name": "Noto Sans", "family": "Noto Sans", "weight": 400, "license": "ofl/notosans" },
+  { "id": "noto-sans-bold", "name": "Noto Sans Bold", "family": "Noto Sans", "weight": 700, "license": "ofl/notosans" },
+  { "id": "montserrat", "name": "Montserrat", "family": "Montserrat", "weight": 400, "license": "ofl/montserrat" },
+  { "id": "montserrat-bold", "name": "Montserrat Bold", "family": "Montserrat", "weight": 700, "license": "ofl/montserrat" },
+  { "id": "oswald", "name": "Oswald", "family": "Oswald", "weight": 500, "license": "ofl/oswald" },
+  { "id": "bebas-neue", "name": "Bebas Neue", "family": "Bebas Neue", "weight": 400, "license": "ofl/bebasneue" },
+  { "id": "anton", "name": "Anton", "family": "Anton", "weight": 400, "license": "ofl/anton" },
+  { "id": "bangers", "name": "Bangers", "family": "Bangers", "weight": 400, "license": "ofl/bangers" },
+  { "id": "exo-2-bold", "name": "Exo 2 Bold", "family": "Exo 2", "weight": 700, "license": "ofl/exo2" },
+  { "id": "jetbrains-mono", "name": "JetBrains Mono", "family": "JetBrains Mono", "weight": 400, "license": "ofl/jetbrainsmono" },
+  { "id": "jetbrains-mono-bold", "name": "JetBrains Mono Bold", "family": "JetBrains Mono", "weight": 700, "license": "ofl/jetbrainsmono" },
+  { "id": "silkscreen", "name": "Silkscreen", "family": "Silkscreen", "weight": 400, "license": "ofl/silkscreen" },
+  { "id": "pixelify-sans", "name": "Pixelify Sans", "family": "Pixelify Sans", "weight": 400, "license": "ofl/pixelifysans" },
+  { "id": "pacifico", "name": "Pacifico", "family": "Pacifico", "weight": 400, "license": "ofl/pacifico" },
+  { "id": "caveat", "name": "Caveat", "family": "Caveat", "weight": 600, "license": "ofl/caveat" },
+  { "id": "permanent-marker", "name": "Permanent Marker", "family": "Permanent Marker", "weight": 400, "license": "apache/permanentmarker" }
+]

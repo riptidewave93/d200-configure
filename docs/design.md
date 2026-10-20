@@ -172,6 +172,28 @@ The page says what changed ("Made smaller to fit: 120×120, 24 of 48 frames"). E
 own animation budget on the device, and in the previews (`newPage`), so the page warns when the GIFs
 on the page shown add up to more. Saving drops images no key shows, as it does icons.
 
+## Fonts
+
+The device draws labels in its Go fonts, or in fonts the config carries (512 KiB each, within the
+config's 2 MiB). The font list offers three groups: the device's own, the config's, and more.
+
+- **More fonts** is a catalog of about 20 open fonts (`src/lib/fontcatalog.json`), one weight per
+  file, from Google Fonts. `make fonts` downloads them and their licenses into `public/fonts/`,
+  kept in git, so the site serves them itself; a font loads only when it's picked.
+- **Cut down to the labels.** A catalog font goes into the config with only the characters its
+  labels use (`subsetFont`, d200-deck's `fonts.Subset`): a few KB instead of hundreds. As labels
+  gain characters, it's cut again from the whole font (`growFonts`), and saving cuts it to exactly
+  what's used. A config read back from the device can do the same, since its catalog fonts are
+  found by ID (`inter-bold`).
+- **From a file:** TrueType or OpenType, and WOFF, which is unpacked first. A font that fits goes
+  in whole. A bigger one is cut down like a catalog font, if it's TrueType, and kept whole only
+  while the page is open: after a reload, new characters show as boxes, and the page says so.
+  WOFF2 and font collections are refused, as are fonts the device can't read (`checkFont`).
+- Saving drops fonts no label uses, as it does images.
+- The catalog leaves out fonts with a Reserved Font Name in their license (Press Start 2P, Orbitron,
+  Lobster, IBM Plex and others): a cut-down copy counts as a modified font, which may not use the
+  name.
+
 ## The device code in the browser
 
 `wasm/main.go` builds d200-deck's `deck` and `render` packages to WebAssembly. It gives the page:
@@ -185,7 +207,8 @@ on the page shown add up to more. Saving drops images no key shows, as it does i
 | `iconNames`, `iconPath` | `icons.Names`, `icons.Get` | The icon picker |
 | `embed` | `icons.Embed` | Copying the icons keys use into the config before saving |
 | `names` | `deck.Keys`, `deck.UsageNames`, ... | Key names, media keys, fonts, apps and their ops |
-| `missingGlyphs` | `render.MissingGlyphs` | A warning under a label with characters its font lacks (they show as boxes) |
+| `missingGlyphs`, `fontLacks` | `render.MissingGlyphs`, `sfnt` | A warning under a label with characters its font lacks (they show as boxes) |
+| `subsetFont`, `checkFont` | `fonts.Subset`, `deck.CheckFont` | Fonts cut down to their labels, and fonts from files |
 | `newPage` | `render.NewPage` | Each page's own animation budget, as on the device |
 | `defaultConfig` | `deck.DefaultConfig` | The fake device |
 
@@ -238,4 +261,4 @@ The page says "device", not "D200", so a new model needs no wording changes.
 
 ## Not done yet
 
-- Adding custom fonts (they're kept and drawn if a config already has them).
+- WOFF2 font files (convert them to TTF first).

@@ -23,6 +23,7 @@ Repos/
 | `make test` | Unit tests: the site's, and the Go ones in `wasm/fit` |
 | `make build` | The site, into `dist/` |
 | `make wasm` | Just the WebAssembly part (built with TinyGo) and the Go fonts, into `src/wasm/` (the targets above run it) |
+| `make fonts` | Downloads the font catalog into `public/fonts/` again, after changing `src/lib/fontcatalog.json` |
 | `make clean` | Removes `dist/`, `node_modules/` and `.cache/` |
 
 `make <target> DOCKER=` uses the host's Node, Go and TinyGo instead of Docker.
@@ -60,6 +61,7 @@ WebHID works on `localhost`, so `make dev` and Chrome are enough.
 | `src/lib/models.ts` | The kinds of device: their keys and face |
 | `src/lib/emoji.ts` | Emoji: the list, search, and drawing them into PNGs |
 | `src/lib/pictures.ts` | Pictures from files: reading, naming, and the animation budget |
+| `src/lib/fonts.ts` | Fonts: the catalog, fonts from files, cutting them down to the labels |
 | `src/lib/fakedevice.ts` | The in-memory device, for tests and `?fake` |
 | `wasm/main.go` | The WebAssembly part: d200-deck's `deck`, `icons` and `render` packages for the browser |
 | `wasm/fit/` | Fitting pictures to the device's limits, GIFs included |

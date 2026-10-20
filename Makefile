@@ -10,7 +10,7 @@ DOCKER ?= docker
 # checkout next to this one; in CI, DECK_VERSION fetched by make deck-source.
 DECK_DIR ?= ../d200-deck
 DECK_REPO := https://github.com/riptidewave93/d200-deck.git
-DECK_VERSION := 37dea5b2e1f18e493d6a986dc19dc3d6210bc090
+DECK_VERSION := ad23c360fdd932aa0041295c536971e9c96aec67
 
 REPO_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 COMMA := ,
@@ -20,7 +20,7 @@ RUN := $(DOCKER) run --rm --user $(shell id -u):$(shell id -g) -e HOME=/tmp \
 	-v "$(REPO_DIR)":/repo:Z -w /repo
 endif
 
-.PHONY: all check test build dev wasm deck-source clean
+.PHONY: all check test build dev wasm fonts deck-source clean
 
 all : check test build
 
@@ -44,6 +44,10 @@ wasm :
 		cd .. && cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" src/wasm/ && \
 		fonts="$$(go list -C wasm -m -f "{{.Dir}}" golang.org/x/image)/font/gofont/ttfs" && \
 		install -m 644 "$$fonts/Go-Regular.ttf" "$$fonts/Go-Medium.ttf" src/wasm/'
+
+# The font catalog (src/lib/fontcatalog.json) into public/fonts, from Google Fonts; kept in git
+fonts :
+	$(RUN) $(NODE_IMAGE) node scripts/fonts.mjs
 
 # d200-deck at DECK_VERSION into .cache/d200-deck, for CI: make deck-source && make DECK_DIR=.cache/d200-deck
 deck-source :

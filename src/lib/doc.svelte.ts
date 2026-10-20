@@ -3,6 +3,7 @@
 import type { Action, Button, Config } from "./config";
 import type { Deck } from "./deck";
 import { pageTree, pathTo, type PageTree } from "./pages";
+import { trimFonts } from "./fonts";
 import { usedImages } from "./pictures";
 
 // A key on a page.
@@ -49,8 +50,9 @@ export class Doc {
   }
 
   // tidy gives the config exactly the icons its keys can show, from its own
-  // and the catalog, and drops the images no key shows: the device has
-  // little room. It returns the icon names found in neither.
+  // and the catalog, drops the images and fonts no key uses, and cuts
+  // cut-down fonts to their labels: the device has little room. It returns
+  // the icon names found in neither.
   tidy(deck: Deck): string[] {
     const { icons, unknown } = deck.embed(this.c);
     if (Object.keys(icons).length) this.c.icons = icons;
@@ -60,6 +62,7 @@ export class Doc {
       for (const id of Object.keys(this.c.images)) if (!used.has(id)) delete this.c.images[id];
       if (!Object.keys(this.c.images).length) delete this.c.images;
     }
+    trimFonts(deck, this.c);
     return unknown;
   }
 

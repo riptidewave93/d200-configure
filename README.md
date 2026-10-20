@@ -31,9 +31,8 @@ the config on your PC.
 
 ## Status
 
-Early. Editing keys, pages and actions, icons, emoji and pictures (animated GIFs too), live key
-previews, and reading and saving the device's config work, tested on a device. Adding custom fonts
-is not done yet.
+Early. Editing keys, pages and actions, icons, emoji, pictures (animated GIFs too) and fonts, live
+key previews, and reading and saving the device's config work, tested on a device.
 
 ## Docs
 
@@ -58,4 +57,6 @@ and [USB protocol](https://github.com/riptidewave93/d200-deck/blob/main/docs/api
 GPL-3.0-or-later. The site includes d200-deck's Go code, built to WebAssembly; its third-party parts
 are listed in d200-deck's [NOTICE.md](https://github.com/riptidewave93/d200-deck/blob/main/NOTICE.md).
 The page uses the [Go fonts](https://go.dev/blog/go-fonts) (BSD-3-Clause), from that same code.
-Emoji names and search words are from [emojibase](https://emojibase.dev/) (MIT).
+Emoji names and search words are from [emojibase](https://emojibase.dev/) (MIT). The fonts in
+`public/fonts/` are from [Google Fonts](https://fonts.google.com/), under the SIL Open Font License
+1.1, except Permanent Marker (Apache-2.0); their licenses are in `public/fonts/licenses/`.

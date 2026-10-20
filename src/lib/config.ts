@@ -23,6 +23,8 @@ export const MaxIconSide = 128;
 export const MaxIconBytes = 24 << 10;
 // a custom image: PNG, JPEG or GIF
 export const MaxImageBytes = 256 << 10;
+// a custom font: TrueType or OpenType
+export const MaxFontBytes = 512 << 10;
 
 export interface Page {
   keys: Record<string, Button>; // by key number

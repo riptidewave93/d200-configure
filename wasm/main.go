@@ -15,6 +15,10 @@
 //	newPage(): the preview shows another page (render.NewPage: each page has its own
 //	  animation budget)
 //	missingGlyphs(buttonJSON) -> the label characters its font lacks, as a string
+//	checkFont(bytes) -> "" or why the device can't use the font
+//	subsetFont(bytes, text) -> JSON {data (base64)} or {error, notTrueType}: the font with
+//	  only the characters in text (fonts.Subset)
+//	fontLacks(base64, text) -> the characters of text the font has no glyph for
 //	builtinFallback(actionJSON) -> JSON: what the device does instead while the PC helper
 //	  can't run the action (e.g. Discord mute presses Ctrl+Shift+M), or null
 //	layout -> JSON: {width, height, keys: [{x, y, w, h}]}, the key windows on the screen
@@ -29,11 +33,16 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"maps"
 	"slices"
 	"syscall/js"
+	"unicode"
+
+	"golang.org/x/image/font/sfnt"
 
 	"github.com/riptidewave93/d200-deck/deck"
+	"github.com/riptidewave93/d200-deck/fonts"
 	"github.com/riptidewave93/d200-deck/icons"
 	"github.com/riptidewave93/d200-deck/render"
 
@@ -52,6 +61,9 @@ func main() {
 		"imageInfo":     js.FuncOf(imageInfo),
 		"newPage":       js.FuncOf(func(js.Value, []js.Value) any { renderer.NewPage(); return nil }),
 		"missingGlyphs": js.FuncOf(missingGlyphs),
+		"checkFont":     js.FuncOf(checkFont),
+		"subsetFont":    js.FuncOf(subsetFont),
+		"fontLacks":     js.FuncOf(fontLacks),
 		"builtinFallback": js.FuncOf(func(_ js.Value, args []js.Value) any {
 			var a deck.Action
 			if len(args) != 1 || json.Unmarshal([]byte(args[0].String()), &a) != nil {
@@ -153,13 +165,55 @@ func missingGlyphs(_ js.Value, args []js.Value) any {
 	return string(renderer.MissingGlyphs(button(args[0].String())))
 }
 
+func checkFont(_ js.Value, args []js.Value) any {
+	if err := deck.CheckFont(base64.StdEncoding.EncodeToString(bytesOf(args[0]))); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+func subsetFont(_ js.Value, args []js.Value) any {
+	b, err := fonts.Subset(bytesOf(args[0]), []rune(args[1].String()))
+	if err != nil {
+		return marshal(map[string]any{"error": err.Error(), "notTrueType": errors.Is(err, fonts.ErrNotTrueType)})
+	}
+	return marshal(map[string]any{"data": base64.StdEncoding.EncodeToString(b)})
+}
+
+func fontLacks(_ js.Value, args []js.Value) any {
+	text := args[1].String()
+	b, err := base64.StdEncoding.DecodeString(args[0].String())
+	if err != nil {
+		return text
+	}
+	f, err := sfnt.Parse(b)
+	if err != nil {
+		return text
+	}
+	var buf sfnt.Buffer
+	var lacks []rune
+	for _, r := range text {
+		if unicode.IsControl(r) || slices.Contains(lacks, r) {
+			continue
+		}
+		if g, err := f.GlyphIndex(&buf, r); err != nil || g == 0 {
+			lacks = append(lacks, r)
+		}
+	}
+	return string(lacks)
+}
+
+func bytesOf(v js.Value) []byte {
+	b := make([]byte, v.Length())
+	js.CopyBytesToGo(b, v)
+	return b
+}
+
 func fitImage(_ js.Value, args []js.Value) any {
 	if len(args) != 4 {
 		return marshal(map[string]any{"error": "fitImage needs bytes, width, height and maxBytes"})
 	}
-	b := make([]byte, args[0].Length())
-	js.CopyBytesToGo(b, args[0])
-	p, err := fit.Fit(b, fit.Box{Width: args[1].Int(), Height: args[2].Int(), Bytes: args[3].Int()})
+	p, err := fit.Fit(bytesOf(args[0]), fit.Box{Width: args[1].Int(), Height: args[2].Int(), Bytes: args[3].Int()})
 	if err != nil {
 		return marshal(map[string]any{"error": err.Error()})
 	}

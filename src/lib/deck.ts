@@ -60,6 +60,13 @@ export interface Deck {
   newPage(): void;
   // missingGlyphs are the label characters the look's font lacks
   missingGlyphs(look: Look): string;
+  // checkFont is "" for a font the device can use, else why not
+  checkFont(b: Uint8Array): string;
+  // subsetFont cuts a TrueType font down to the characters in text, as
+  // base64; it throws why it can't, with notTrueType set for CFF fonts
+  subsetFont(b: Uint8Array, text: string): string;
+  // fontLacks are the characters of text a font (base64) has no glyph for
+  fontLacks(base64: string, text: string): string;
   // builtinFallback is what the device does instead while the PC helper
   // can't run an app action, if it has something built in
   builtinFallback(a: Action): Action | null;
@@ -85,6 +92,9 @@ interface Exports {
   imageInfo(base64: string): string;
   newPage(): void;
   missingGlyphs(json: string): string;
+  checkFont(b: Uint8Array): string;
+  subsetFont(b: Uint8Array, text: string): string;
+  fontLacks(base64: string, text: string): string;
   builtinFallback(json: string): string;
   layout: string;
   iconNames: string;
@@ -139,6 +149,13 @@ async function start(code?: BufferSource): Promise<Deck> {
     newPage: () => x.newPage(),
     builtinFallback: (a) => JSON.parse(x.builtinFallback(JSON.stringify(a))),
     missingGlyphs: (l) => x.missingGlyphs(JSON.stringify({ ...l, action: {} })),
+    checkFont: (b) => x.checkFont(b),
+    subsetFont: (b, text) => {
+      const r = JSON.parse(x.subsetFont(b, text));
+      if (r.error) throw Object.assign(new Error(r.error), { notTrueType: !!r.notTrueType });
+      return r.data;
+    },
+    fontLacks: (b64, text) => x.fontLacks(b64, text),
     imageInfo: (s) => {
       const r = JSON.parse(x.imageInfo(s));
       return r.error ? null : r;
