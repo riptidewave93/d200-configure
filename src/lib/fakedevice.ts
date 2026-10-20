@@ -43,7 +43,9 @@ export class FakeDevice implements Transport {
   host: HostInfo = { connected: false };
   settingsState: Settings = { usb_drive: true, usb_net4: "" };
   config: Uint8Array;
-  identified: number[] = [];
+  identified: number[] = []; // -1: the whole screen
+  // flashes the whole screen on an empty identify; older devices don't
+  canFlash = true;
   // requests the device answers with status Unknown command, e.g. to act as an older device
   unknown = new Set<number>();
   // set to drop replies, as a device that went away
@@ -119,6 +121,10 @@ export class FakeDevice implements Transport {
         return [Status.OK];
       }
       case Cmd.Identify:
+        if (p.length === 0 && this.canFlash) {
+          this.identified.push(-1);
+          return [Status.OK];
+        }
         if (p.length !== 1 || p[0] >= this.hello.keys) return [Status.BadRequest];
         this.identified.push(p[0]);
         return [Status.OK];

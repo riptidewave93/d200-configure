@@ -53,7 +53,12 @@ d200-deck's [docs/api.md](https://github.com/riptidewave93/d200-deck/blob/main/d
   connecting and every hour, as the PC helper does. It ignores a device that doesn't know the
   command.
 - **Re-plugging.** Changing a USB setting makes the device drop off USB for a moment. The site waits
-  for it to come back, reconnects, and checks it's the same device by its serial number.
+  for it to come back and reconnects to the same device: a HID device only says its serial number
+  once it's opened, so another one plugged in meanwhile is opened, found out and passed over.
+- **Several devices.** The site edits one at a time. It remembers the serial number of the last one
+  (in this browser) and goes back to it on the next visit; **Use another device** opens the browser's
+  chooser, where they all look alike, so **Flash to identify** flashes the connected one's keys
+  white (an `identify` with no key).
 
 ## Reading and saving
 

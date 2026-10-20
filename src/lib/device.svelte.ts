@@ -17,6 +17,26 @@ const text = new TextDecoder();
 // How often to ask whether the PC helper is running: nothing tells us.
 const hostPoll = 5000;
 
+// The serial number of the device used last, so that with several allowed
+// the site goes back to the same one. Only in this browser.
+const lastKey = "last-device";
+
+function remembered(): string {
+  try {
+    return localStorage.getItem(lastKey) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function remember(serial: string) {
+  try {
+    localStorage.setItem(lastKey, serial);
+  } catch {
+    // private windows may refuse; then it's the first allowed device
+  }
+}
+
 export class Device {
   state = $state<State>("none");
   hello = $state<Hello | null>(null);
@@ -50,10 +70,19 @@ export class Device {
     }
   }
 
-  // reconnect opens a device the user allowed before, if there is one.
+  // reconnect opens a device the user allowed before, if there is one: the
+  // one used last, else the first. A HID device doesn't say its serial
+  // number until it's opened, so each is opened to ask.
   async reconnect() {
-    const [d] = await known();
-    if (d && this.state === "none") await this.open(d);
+    const all = await known();
+    const last = remembered();
+    if (last && all.length > 1) {
+      for (const d of all) {
+        if (this.state !== "none") return;
+        if (await this.open(d, last)) return;
+      }
+    }
+    if (all[0] && this.state === "none") await this.open(all[0]);
   }
 
   // choose asks the user for a device and opens it.
@@ -68,8 +97,11 @@ export class Device {
     if (d) await this.open(d);
   }
 
-  // open connects to a HID device; for tests, a transport.
-  async open(d: HIDDevice | Transport) {
+  // open connects to a HID device; for tests, a transport. With want, only
+  // to the device with that serial number: another is closed again, leaving
+  // the state as it was. It says whether it connected.
+  async open(d: HIDDevice | Transport, want = ""): Promise<boolean> {
+    const before = this.state === "reconnecting" ? "reconnecting" : "none";
     await this.drop();
     this.state = "connecting";
     this.error = "";
@@ -85,9 +117,16 @@ export class Device {
       this.conn = conn;
       conn.onEvent((code, p) => this.event(code, p));
       const hello = await conn.hello();
+      if (want && hello.serial !== want) {
+        await this.drop();
+        this.hid = null;
+        this.state = before;
+        return false;
+      }
       if (hello.protocol < Version) throw new Error("This device's software is too old for this site. Update it first.");
       this.hello = hello;
       this.serial = hello.serial;
+      if (this.hid) remember(hello.serial);
       await this.setClock();
       this.clock = window.setInterval(() => this.setClock(), TimePeriod);
       this.settings = await conn.settings();
@@ -97,9 +136,10 @@ export class Device {
     } catch (err) {
       await this.drop();
       this.error = message(err);
-      return;
+      return false;
     }
     this.onOpen?.();
+    return true;
   }
 
   async disconnect() {
@@ -120,13 +160,15 @@ export class Device {
     await conn?.close().catch(() => {});
   }
 
+  // plugged reconnects after a re-plug, to the same device only: another
+  // one plugged in meanwhile is passed over.
   private async plugged(d: HIDDevice) {
-    if (this.state === "reconnecting" && d.collections.some((c) => c.usagePage === 0xffd2)) {
-      const serial = this.serial;
-      await this.open(d);
-      if (this.hello && this.hello.serial !== serial) {
-        this.error = "A different device connected.";
-      }
+    if (this.state !== "reconnecting" || !d.collections.some((c) => c.usagePage === 0xffd2)) return;
+    if (await this.open(d, this.serial)) return;
+    // the one we wait for may have come back while we asked the other
+    for (const other of await known()) {
+      if (other === d || this.state !== "reconnecting") continue;
+      if (await this.open(other, this.serial)) return;
     }
   }
 
@@ -235,6 +277,18 @@ export class Device {
 
   async identify(key: number) {
     await this.connected().identify(key);
+  }
+
+  // flash flashes the whole screen, to tell devices apart.
+  async flash() {
+    try {
+      await this.connected().flash();
+    } catch (err) {
+      if (err instanceof DeviceError && err.status !== Status.Failed) {
+        throw new Error("This device's software can't flash its screen yet. Update it first.");
+      }
+      throw err;
+    }
   }
 
   // pageURL is a link to one of the device's web pages, e.g. "/update".

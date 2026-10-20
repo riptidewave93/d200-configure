@@ -19,12 +19,28 @@
     }
   }
 
+  let flashed = $state(false);
+  async function flash() {
+    error = "";
+    try {
+      await device.flash();
+      flashed = true;
+      setTimeout(() => (flashed = false), 1500);
+    } catch (err) {
+      error = message(err);
+    }
+  }
+
   let h = $derived(device.hello);
   let host = $derived(device.host);
 </script>
 
 <div>
-  <h2>Device</h2>
+  <div class="row head">
+    <h2>Device</h2>
+    <span class="grow"></span>
+    <button class="plain" onclick={flash} disabled={flashed}>{flashed ? "Flashed" : "Flash to identify"}</button>
+  </div>
   <dl>
     <dt>Software</dt>
     <dd>{h?.firmware}</dd>
@@ -82,8 +98,11 @@
 </div>
 
 <style>
-  h2 {
+  .head {
     margin-bottom: 12px;
+  }
+  h2 {
+    margin: 0;
   }
   dl {
     font-size: 14px;

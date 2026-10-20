@@ -27,6 +27,29 @@ describe("device", () => {
     expect(fake.times).toHaveLength(2);
   });
 
+  it("connects only to the device it waits for, when asked", async () => {
+    const other = new FakeDevice();
+    other.hello.serial = "fedcba9876543210";
+    const d = new Device();
+    expect(await d.open(other, "0123456789abcdef")).toBe(false);
+    expect(d.state).toBe("none");
+    expect(d.hello).toBeNull();
+    expect(await d.open(new FakeDevice(), "0123456789abcdef")).toBe(true);
+    expect(d.state).toBe("ready");
+    await d.disconnect();
+  });
+
+  it("flashes the screen, or says the device is too old to", async () => {
+    const fake = new FakeDevice();
+    const d = new Device();
+    await d.open(fake);
+    await d.flash();
+    expect(fake.identified).toEqual([-1]);
+    fake.canFlash = false;
+    await expect(d.flash()).rejects.toThrow("can't flash its screen yet");
+    await d.disconnect();
+  });
+
   it("connects to a device that can't take the time", async () => {
     const older = new FakeDevice();
     older.unknown.add(Cmd.Time);

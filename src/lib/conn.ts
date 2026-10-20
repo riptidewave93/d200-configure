@@ -198,6 +198,11 @@ export class Conn {
     await this.request(Cmd.Identify, new Uint8Array([key]));
   }
 
+  // flash flashes every key white for a moment.
+  async flash() {
+    await this.request(Cmd.Identify);
+  }
+
   configInfo(gzip = false) {
     return this.requestJSON<ConfigInfo>(Cmd.ConfigInfo, gzip ? { gzip: true } : undefined);
   }

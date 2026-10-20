@@ -261,7 +261,10 @@
     {#if showDevice && connected}
       <div class="popover device" role="dialog" aria-label="Device">
         <DevicePanel />
-        <button class="quiet small" onclick={() => device.disconnect()}>Disconnect</button>
+        <div class="row">
+          <button class="quiet small" onclick={() => device.disconnect()}>Disconnect</button>
+          <button class="quiet small" onclick={() => ((showDevice = false), device.choose())}>Use another device</button>
+        </div>
       </div>
     {/if}
   </div>
