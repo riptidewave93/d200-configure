@@ -270,13 +270,15 @@
         <span class="muted small">{working}…</span>
         <progress max={device.progress.total || 1} value={device.progress.done}></progress>
       {:else if notice}
-        <span class="muted small" role="status">{notice}</span>
+        <span class="saved" role="status">{notice}</span>
       {:else if doc.dirty}
         <span class="muted small">Unsaved changes</span>
-        {#if doc.saved}<button class="quiet" onclick={() => doc.revert()}>Undo</button>{/if}
+        {#if doc.saved}<button class="quiet discard" onclick={discard}>Discard changes</button>{/if}
       {/if}
       {#if connected}
-        <button onclick={() => save()} disabled={!doc.dirty || !!working}>Save to device</button>
+        <button class:done={notice === "Saved"} onclick={() => save()} disabled={!doc.dirty || !!working}>
+          <span class="wide">Save to device</span><span class="narrow">{notice === "Saved" ? "Saved" : "Save"}</span>
+        </button>
       {/if}
     </div>
     <div class="files">
@@ -289,6 +291,7 @@
         <div class="popover menu">
           <button class="quiet" onclick={() => ((fileMenu = false), fileInput.click())}>Open file</button>
           <button class="quiet" onclick={() => ((fileMenu = false), saveFile())}>Save file</button>
+          {#if doc.dirty && doc.saved}<button class="quiet" onclick={discard}>Discard changes</button>{/if}
         </div>
       {/if}
     </div>
@@ -401,8 +404,7 @@
         {#if doc.key === null}
           <p class="muted hint">
             {#if Object.keys(doc.config.pages[doc.page]?.keys ?? {}).length}
-              Pick a key to change it{connected ? ", or press it on the device" : ""}. Drag keys to move them;
-              hold Alt to copy.
+              Pick a key to change it{connected ? ", or press it on the device" : ""}.<span class="drag">{" "}Drag keys to move them; hold Alt to copy.</span>
             {:else}
               Nothing here yet. Pick a key to set it up.
             {/if}
@@ -444,9 +446,24 @@
   h1 {
     font-size: 16px;
     white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .save {
     flex-wrap: nowrap;
+  }
+  .saved {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .narrow {
+    display: none;
+  }
+  .files-more > button {
+    min-width: 32px;
+    min-height: 32px;
+    justify-content: center;
   }
   .files {
     display: flex;
@@ -470,6 +487,7 @@
     color: var(--muted);
     font-weight: 400;
     font-size: 14px;
+    min-height: 32px;
   }
   .status.on {
     color: var(--fg);
@@ -598,22 +616,7 @@
     }
   }
   /* one column: the face stays in view while the panel scrolls under it */
-  @media (max-width: 760px) {
-    .top,
-    main {
-      padding-left: 16px;
-      padding-right: 16px;
-    }
-    .files {
-      display: none;
-    }
-    .files-more {
-      display: block;
-    }
-    .status-text,
-    .save .muted {
-      display: none;
-    }
+  @media (max-width: 900px) {
     .editor {
       grid-template-columns: minmax(0, 1fr);
       gap: 16px;
@@ -626,11 +629,41 @@
       padding-bottom: 8px;
     }
     .face {
-      max-width: calc(35vh * 1.65);
+      max-width: calc(40vh * 1.65);
       margin: 8px auto 0;
     }
     .hint {
+      margin-top: 10px;
+    }
+  }
+  /* phones: a compact header, file actions in the ⋯ menu */
+  @media (max-width: 760px) {
+    .top,
+    main {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    .top {
+      gap: 8px;
+    }
+    .files,
+    .save .muted,
+    .saved,
+    .discard,
+    .wide,
+    .drag {
       display: none;
+    }
+    .files-more {
+      display: block;
+    }
+    .narrow {
+      display: inline;
+    }
+    button.done:disabled {
+      opacity: 1;
+      background: none;
+      color: var(--accent);
     }
   }
 </style>

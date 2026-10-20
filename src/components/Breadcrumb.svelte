@@ -54,6 +54,9 @@
   .more {
     display: none;
     padding: 4px 6px;
+    min-width: 32px;
+    min-height: 32px;
+    justify-content: center;
   }
   .popover {
     position: absolute;

@@ -164,6 +164,9 @@ button.quiet {
 details > button.plain {
   margin-left: -6px;
 }
+.row > button:is(.quiet, .plain):last-child {
+  margin-right: -6px;
+}
 button.quiet:hover:not(:disabled) {
   color: var(--fg);
 }
