@@ -41,6 +41,15 @@ export class Doc {
     this.key = null;
   }
 
+  // open loads a config that isn't on the device, such as a file or a new
+  // one: it counts as changed until saved, and Discard goes back to what the
+  // device has, if one is connected.
+  open(c: Config, connected: boolean) {
+    const onDevice = connected ? this.saved : "";
+    this.load(c);
+    this.saved = onDevice;
+  }
+
   markSaved() {
     this.saved = JSON.stringify(this.config);
   }

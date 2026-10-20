@@ -16,6 +16,15 @@ describe("deck (WebAssembly)", () => {
     expect(d.validate(c)).toBe('page "main" key 0: page "nope" does not exist');
   });
 
+  it("starts a new config from the device's built-in one: valid, and a fresh copy each time", async () => {
+    const d = await deck();
+    const c = d.defaultConfig();
+    expect(d.validate(c)).toBe("");
+    expect(Object.keys(c.pages)).toContain(c.home);
+    c.pages[c.home].keys = {};
+    expect(Object.keys(d.defaultConfig().pages[c.home].keys).length).toBeGreaterThan(0);
+  });
+
   it("knows what app keys do by themselves without the PC helper", async () => {
     const d = await deck();
     expect(d.builtinFallback({ type: "app", app: "discord", op: "mute" })).toEqual({

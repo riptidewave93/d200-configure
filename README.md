@@ -28,7 +28,8 @@ Set up your Ulanzi D200's keys from your browser: **https://riptidewave93.github
 3. Change keys and pages, then choose **Save to device**. When keys get new actions, the D200 asks
    you to confirm on its screen.
 
-Without a D200, **Open a config file** edits a saved `config.json`. **Save file** keeps a copy.
+Without a D200, **Open a config file** edits a saved `config.json`, and **Start a new config**
+begins from the D200's default keys. **Save file** keeps a copy.
 
 ## The D200 project
 

@@ -46,6 +46,20 @@ describe("Doc", () => {
     expect(d.button(5)).toBeUndefined();
   });
 
+  it("opens a config that isn't on the device as unsaved: a file, or a new one", () => {
+    const d = new Doc();
+    d.open(config(), false); // no device
+    expect(d.dirty).toBe(true);
+    expect(d.saved).toBe(""); // nothing to discard back to
+    expect(d.page).toBe("main");
+
+    const onDevice = new Doc();
+    onDevice.load(config());
+    const before = onDevice.saved;
+    onDevice.open({ ...config(), home: "main" }, true);
+    expect(onDevice.saved).toBe(before); // Discard goes back to the device's
+  });
+
   it("moves keys, swapping, and copies them", () => {
     const d = new Doc();
     d.load(config());

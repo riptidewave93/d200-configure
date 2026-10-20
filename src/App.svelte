@@ -212,10 +212,15 @@
       error = `That file can't be opened. ${explain(why).text}`;
       return;
     }
-    // not on the device yet: Undo goes back to what is
-    const onDevice = connected ? doc.saved : "";
-    doc.load(c);
-    doc.saved = onDevice;
+    doc.open(c, connected);
+  }
+
+  // startNew starts from the device's built-in keys, to save to a file or a
+  // device later
+  function startNew() {
+    if (!deck) return;
+    error = notice = "";
+    doc.open(deck.defaultConfig(), connected);
   }
 
   function saveFile() {
@@ -228,17 +233,23 @@
     URL.revokeObjectURL(a.href);
   }
 
+  let connectFake = $state<(() => void) | null>(null);
+  const connect = () => (connectFake ? connectFake() : device.choose());
+
   onMount(() => {
     load()
       .then((d) => (deck = d))
       .catch((err) => (error = message(err)));
-    if (import.meta.env.DEV && new URLSearchParams(location.search).has("fake")) {
-      // a device in memory, to work on the site without one: ?fake
+    const fakeParam = new URLSearchParams(location.search).get("fake");
+    if (import.meta.env.DEV && fakeParam !== null) {
+      // a device in memory, to work on the site without one: ?fake, or
+      // ?fake=later to connect it with Connect a device
       Promise.all([import("./lib/fakedevice"), load()]).then(([{ FakeDevice }, d]) => {
         const fake = new FakeDevice(d.defaultConfig());
         fake.hello.features = d.features; // as new as the site
         fake.host = { connected: true, name: "deckhost", version: "dev", apps: [{ name: "discord", title: "Discord" }] };
-        device.open(fake);
+        if (fakeParam === "later") connectFake = () => device.open(fake);
+        else device.open(fake);
       });
     } else if (supported()) {
       device.reconnect();
@@ -320,7 +331,7 @@
     {:else if device.state !== "none"}
       <span class="status"><span class="dot busy"></span><span class="status-text">{status}</span></span>
     {:else if supported() && doc.config}
-      <button onclick={() => device.choose()}>Connect</button>
+      <button onclick={connect}>Connect</button>
     {:else}
       <span class="status"><span class="dot"></span><span class="status-text">{status}</span></span>
     {/if}
@@ -356,13 +367,17 @@
   {/if}
   {#if conflict}
     <div class="warn row">
-      <span class="grow">The device's keys changed since you opened them.</span>
+      <span class="grow"
+        >{doc.saved ? "The device's keys changed since you opened them." : "The device has its own keys."}</span
+      >
       <button onclick={() => save(true)}>Keep mine</button>
       <button class="plain" onclick={loadFromDevice}>Use the device's</button>
     </div>
   {:else if device.changed}
     <div class="warn row">
-      <span class="grow">The device's keys changed since you opened them.</span>
+      <span class="grow"
+        >{doc.saved ? "The device's keys changed since you opened them." : "The device has its own keys."}</span
+      >
       {#if doc.dirty}<button onclick={() => save(true)}>Keep mine</button>{/if}
       <button class={doc.dirty ? "plain" : ""} onclick={loadFromDevice}>Use the device's</button>
     </div>
@@ -380,8 +395,9 @@
       {:else if supported()}
         <p class="muted">Plug it into this computer, then connect.</p>
         <div class="row center">
-          <button onclick={() => device.choose()} disabled={device.state !== "none"}>Connect a device</button>
+          <button onclick={connect} disabled={device.state !== "none"}>Connect a device</button>
           <button class="plain" onclick={() => fileInput.click()}>Open a config file</button>
+          <button class="plain" onclick={startNew} disabled={!deck}>Start a new config</button>
         </div>
         {#if linux}
           <p class="muted small note">
@@ -392,6 +408,7 @@
       {:else}
         <div class="row center">
           <button onclick={() => fileInput.click()}>Open a config file</button>
+          <button class="plain" onclick={startNew} disabled={!deck}>Start a new config</button>
         </div>
       {/if}
     </section>
