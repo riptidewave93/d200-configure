@@ -27,9 +27,9 @@
       "semanticCommitScope": "deps"
     },
     {
-      "description": "Actions and container images: one PR a week",
+      "description": "Actions, runners and container images: one PR a week",
       "matchManagers": ["github-actions", "custom.regex"],
-      "matchDatasources": ["github-tags", "docker"],
+      "matchDatasources": ["github-tags", "github-runners", "docker"],
       "matchDepNames": ["!riptidewave93/d200-deck"],
       "groupName": "tools",
       "schedule": ["* 0-5 * * 1"],
