@@ -1,51 +1,43 @@
 # d200-configure
 
-The configuration website for the [Ulanzi D200](https://www.ulanzi.com/) running
-[d200-deck](https://github.com/riptidewave93/d200-deck): set up its pages of keys from your browser.
+Set up your Ulanzi D200's keys from your browser: **https://riptidewave93.github.io/d200-configure/**
 
-**https://riptidewave93.github.io/d200-configure/**
+Make pages of keys with icons, emoji, pictures (animated GIFs too) and labels in the font you like.
+A key can press a key combo or media key, type text, run a macro, open another page, a website or a
+program, or control Discord, OBS or your music player. Each key is previewed as the D200 will show
+it.
 
-It runs entirely in the browser and talks to the device over USB (WebHID). There is no server and
-nothing to install, apart from a udev rule on Linux.
+## What you need
+
+- A D200 running the [d200-buildroot firmware](https://github.com/riptidewave93/d200-buildroot).
+- Chrome or Edge on a computer. Firefox, Safari and phones can't open USB devices.
+- On Linux, a udev rule so the browser can open the D200: the PC helper installs it, or install
+  [the rule](https://github.com/riptidewave93/d200-deck/blob/main/contrib/linux/70-d200-deck.rules)
+  on its own.
+- The [PC helper](https://github.com/riptidewave93/d200-deck/blob/main/docs/install.md), for keys
+  that open websites or programs, or control apps.
 
 ## Using it
 
-1. Plug the device into your PC.
-2. Open the site in **Chrome or Edge** on a desktop. Firefox and Safari can't talk to USB devices.
-3. Choose **Connect a device** and pick it from the list.
-4. Change keys and pages, then choose **Save to device**.
+1. Plug in the D200 and open the site.
+2. Choose **Connect a device** and pick it.
+3. Change keys and pages, then choose **Save to device**. When keys get new actions, the D200 asks
+   you to confirm on its screen.
 
-**Linux:** the browser needs a udev rule to open the device. It comes with the PC helper
-([deckhost](https://github.com/riptidewave93/d200-deck/blob/main/docs/install.md)), or install
-[70-d200-deck.rules](https://github.com/riptidewave93/d200-deck/blob/main/contrib/linux/70-d200-deck.rules)
-on its own:
-
-```bash
-sudo curl -o /etc/udev/rules.d/70-d200-deck.rules \
-  https://raw.githubusercontent.com/riptidewave93/d200-deck/main/contrib/linux/70-d200-deck.rules
-sudo udevadm control --reload && sudo udevadm trigger
-```
-
-Without a device, **Open a config file** edits a saved `config.json`. **Save file** keeps a copy of
-the config on your PC.
-
-## Docs
-
-| Doc | Read it for |
-|---|---|
-| [docs/development.md](docs/development.md) | Building, running locally, testing with a device, publishing |
-| [docs/design.md](docs/design.md) | What to know before changing the site |
+Without a D200, **Open a config file** edits a saved `config.json`. **Save file** keeps a copy.
 
 ## The D200 project
 
 | Repo | What |
 |---|---|
-| [d200-buildroot](https://github.com/riptidewave93/d200-buildroot) | The firmware: U-Boot, Linux, the root filesystem; installing, updating, recovery |
-| [d200-deck](https://github.com/riptidewave93/d200-deck) | `deckd` (keys and update page on the device), `deckhost` (the PC helper), the config format and USB API |
-| [d200-configure](https://github.com/riptidewave93/d200-configure) | The configuration website: https://riptidewave93.github.io/d200-configure/ |
+| [d200-buildroot](https://github.com/riptidewave93/d200-buildroot) | The firmware: installing, updating, recovery |
+| [d200-deck](https://github.com/riptidewave93/d200-deck) | The keys on the D200, and the PC helper |
+| [d200-configure](https://github.com/riptidewave93/d200-configure) | This website |
 
-What the site reads and writes is in d200-deck's [config format](https://github.com/riptidewave93/d200-deck/blob/main/docs/config.md)
-and [USB protocol](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md) docs.
+## Developing
+
+[docs/development.md](docs/development.md) builds and runs the site locally;
+[docs/design.md](docs/design.md) is what to know before changing it.
 
 ## License
 

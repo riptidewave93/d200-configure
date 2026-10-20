@@ -25,7 +25,7 @@
 - **Without a device:** open http://localhost:5173/d200-configure/?fake (dev server only). Saves go
   to memory.
 - **With a device:** `make dev` and Chrome. On Linux, install the udev rule first
-  ([README](../README.md#using-it)). `chrome://device-log` shows WebHID errors.
+  ([README](../README.md#what-you-need)). `chrome://device-log` shows WebHID errors.
 
 ## Updating d200-deck
 
