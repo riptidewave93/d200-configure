@@ -68,9 +68,10 @@ test : node_modules wasm
 build : node_modules wasm
 	$(RUN) $(NODE_IMAGE) npx vite build
 
-# Dev server at http://localhost:5173/d200-configure/ (WebHID works on localhost)
+# Dev server at http://localhost:5173/d200-configure/ (WebHID works on localhost). -it only from a
+# terminal, so it also runs from scripts.
 dev : node_modules wasm
-	$(RUN) $(if $(DOCKER),-it -p 127.0.0.1:5173:5173) $(NODE_IMAGE) npx vite --host 0.0.0.0
+	$(RUN) $(if $(DOCKER),$(shell [ -t 0 ] && echo -it) --init -p 127.0.0.1:5173:5173) $(NODE_IMAGE) npx vite --host 0.0.0.0
 
 clean :
 	rm -rf ./dist ./node_modules ./.cache
