@@ -21,13 +21,15 @@ What to know before changing the site. The protocol and config format are d200-d
 | `src/lib/proto.ts`, `conn.ts` | The protocol and a connection, after d200-deck's `proto/` (same names) |
 | `src/lib/webhid.ts`, `device.svelte.ts` | Opening the device, reconnecting after it re-plugs |
 | `src/lib/gzip.ts` | Gzipped configs (protocol 4) |
-| `src/lib/doc.svelte.ts` | The config being edited |
+| `src/lib/config.ts`, `doc.svelte.ts` | The config's types, and the config being edited |
 | `src/lib/features.ts` | What to offer, and the pre-save check |
 | `src/lib/errors.ts` | Why a config can't be saved, in plain words |
 | `src/lib/actions.ts`, `keys.ts` | Words for actions, keys and app ops |
 | `src/lib/pages.ts` | The page tree, from the keys that open pages |
 | `src/lib/deck.ts`, `draw.ts` | Loading the WebAssembly part, drawing keys with it |
 | `src/lib/emoji.ts`, `pictures.ts`, `fonts.ts` | Emoji, pictures and fonts going into the config |
+| `src/lib/mac.ts` | Mac key combos, and telling the device which computer it's on |
+| `src/lib/align.ts` | Align screen |
 | `src/lib/models.ts` | The kinds of device: keys and face |
 | `src/lib/fakedevice.ts` | An in-memory device, for tests and `?fake` |
 | `wasm/main.go` | The WebAssembly part |
@@ -64,25 +66,25 @@ It's built with TinyGo, so:
 
 - `Conn` sends one request at a time and waits up to 2 s for each reply
   ([api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#requests)).
-- Protocols 3 and 4, told apart by report size; 4 moves configs gzipped. Below 3 or above 4, the
-  site says to update the device or reload the page.
+- Protocols 3 and 4, told apart by report size. 4 moves configs gzipped once the device reports
+  their `gzip_size`, and as they are until then (just after it starts or gets a new config). Below 3
+  or above 4, the site says to update the device or reload the page.
 - Events: `key` selects that key on the page, `config-changed` offers to load the new config,
   `usb-rebinding` waits for the device to re-plug and reconnects to the same serial number.
 - The site sends the time on connecting and every hour, and asks every 5 s whether the PC helper
   runs.
 - Settings show only when the device reports them. Brightness is sent at most 10 times a second
   while the slider moves, and always the last value.
-- While the page is visible the site sets `editing` (sent again every 3 s; the device stops 10 s
-  after the last): a press on the device only selects the key here. Hidden, closing the page and
-  disconnecting turn it off.
-- Reset device (`commands` has `"reset"`) waits for a press on the device, which then restarts
-  without an event: the site goes back to the start screen and waits up to 90 s to reconnect.
-- While Align screen is open the site sends `screen_pattern` again every 20 s (the device ends it
-  a minute after the last change), and ends it on Done, on closing the panel and when the page
-  closes.
-- On connect the site sets `host_os` to the browser's computer, if it changed and the PC helper
-  isn't connected. On a Mac the editor shows and edits a combo's `mac_keys` where it has them,
-  else `keys` (`mac.ts`); a device without `action.mac_keys` is sent the config without them.
+- `editing` is on while the page is visible, so a press on the device only selects the key here.
+  It's sent again every 3 s, and turned off when the page is hidden or closed and before
+  disconnecting.
+- `screen_pattern` is sent again every 20 s while Align screen is open, and turned off on Done, on
+  closing the panel and when the page closes.
+- Reset device waits for a press on the device, which then restarts without an event: the site goes
+  back to the start screen and reconnects, giving up after 90 s.
+- `host_os` is set on connect to the browser's computer, if it changed and the PC helper isn't
+  connected. On a Mac the editor shows and edits a combo's `mac_keys` where it has them, else
+  `keys`; a device without `action.mac_keys` is sent the config without them.
 
 ## Saving
 
@@ -106,9 +108,10 @@ lists what the device's software supports. The site offers what's in both that a
 |---|---|
 | Action types; key, media key, system and font names; fields such as `button.on` | In both lists |
 | App actions and their settings | The device's list, or all for an app it doesn't know; while the PC helper is connected, only what it runs |
-| Limits | The smaller of the two; `anim_bytes` only from a device that reports it |
+| Newer settings such as `editing`, and requests such as `reset` | Only what the device lists |
+| Limits | The smaller of the two. Without `config_bytes` a device takes 2 MB; without `anim_bytes`, the older GIF budget |
 
-A device without `features` gets the site's lists, and the older GIF budget. A value already in the
+A device without `features` gets the site's lists, and the older limits. A value already in the
 config always shows. Before saving, `unsupportedMessage` refuses a config that uses what the device lacks.
 Gate a new option in the editor on its field or name.
 
