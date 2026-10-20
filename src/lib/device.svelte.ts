@@ -173,7 +173,7 @@ export class Device {
       // tell the device which computer this is, unless the PC helper has
       const os = hostOS(this.os, hello.features, this.settings, this.host);
       if (os) this.settings = await conn.settings({ host_os: os }).catch(() => this.settings);
-      this.poll = window.setInterval(() => this.checkHost(), hostPoll);
+      this.poll = window.setInterval(() => this.checkHost().catch(() => {}), hostPoll);
       this.state = "ready";
       this.holdKeys(visible());
     } catch (err) {

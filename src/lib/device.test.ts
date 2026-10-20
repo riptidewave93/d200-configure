@@ -23,10 +23,19 @@ describe("device", () => {
     expect(d.state).toBe("ready");
     expect(fake.times).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(TimePeriod);
-    await vi.waitFor(() => expect(fake.times).toHaveLength(2));
+    // after the hour's PC helper checks, which queue up ahead of it
+    await vi.waitFor(() => expect(fake.times).toHaveLength(2), { timeout: 10_000 });
     await d.disconnect();
     await vi.advanceTimersByTimeAsync(TimePeriod);
     expect(fake.times).toHaveLength(2);
+  });
+
+  it("drops an unanswered PC helper check on disconnect", async () => {
+    const d = new Device();
+    await d.open(new FakeDevice());
+    vi.advanceTimersByTime(5000); // asks whether the PC helper runs
+    await d.disconnect(); // before the reply: an unhandled rejection fails the run
+    await new Promise((r) => setTimeout(r, 10));
   });
 
   it("connects only to the device it waits for, when asked", async () => {
