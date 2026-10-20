@@ -113,8 +113,7 @@ After a re-plug the site compares revs and reads the config again only if it cha
 
 ## Editing
 
-- The config is edited in place, as the JSON objects it was read as. Fields the site doesn't know
-  (from a newer device) survive a save.
+- The config is edited in place, as the JSON objects it was read as.
 - A cleared field is removed rather than left empty, so the saved file stays as small and readable
   as one written by hand.
 - "Unsaved changes" means the config's JSON differs from the one last read or saved.
@@ -200,13 +199,13 @@ config's 2 MiB). The font list offers three groups: the device's own, the config
 
 | Function | From | Used for |
 |---|---|---|
-| `validate` | `deck.Parse` | Checking a config before saving or opening it |
+| `validate` | `deck.ParseStrict` | Checking a config before saving or opening it, unknown fields too |
 | `renderKey`, `setAssets` | `render.Renderer`, `icons.Embed` | Key previews, pixel for pixel as on the device; animated GIFs redraw when `Renderer.Next` says |
 | `fitImage`, `imageInfo` | `wasm/fit`, `deck.ImageSize` | Fitting pictures as they're added (above) |
 | `layout` | `render.Key`, `render.Width/Height` | Where the keys sit on the face |
 | `iconNames`, `iconPath` | `icons.Names`, `icons.Get` | The icon picker |
 | `embed` | `icons.Embed` | Copying the icons keys use into the config before saving |
-| `names` | `deck.Keys`, `deck.UsageNames`, ... | Key names, media keys, fonts, apps and their ops |
+| `features` | `deck.Features` | What the site supports: names, fields, apps and limits |
 | `missingGlyphs`, `fontLacks` | `render.MissingGlyphs`, `sfnt` | A warning under a label with characters its font lacks (they show as boxes) |
 | `subsetFont`, `checkFont` | `fonts.Subset`, `deck.CheckFont` | Fonts cut down to their labels, and fonts from files |
 | `newPage` | `render.NewPage` | Each page's own animation budget, as on the device |

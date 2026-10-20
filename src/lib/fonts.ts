@@ -82,7 +82,7 @@ export async function addCatalogFont(deck: Deck, c: Config, id: string, extra: s
 // its ID. It throws why the font can't be used.
 export async function addFontFile(deck: Deck, c: Config, f: File, extra: string): Promise<{ id: string; cut: boolean }> {
   const b = await readFontFile(f);
-  const id = fontID(f.name, [...Object.keys(c.fonts ?? {}), ...deck.names.fonts]);
+  const id = fontID(f.name, [...Object.keys(c.fonts ?? {}), ...deck.features.fonts]);
   if (b.length <= MaxFontBytes) {
     const why = deck.checkFont(b);
     if (why) throw new Error(why);

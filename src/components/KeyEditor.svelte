@@ -8,10 +8,11 @@
 
   let { key }: { key: number } = $props();
 
-  const { doc, device, model } = app();
+  const { doc, device, model, features } = app();
   let button = $derived(doc.button(key));
   let win = $derived(model().windows[key]);
-  let hasOn = $derived(button?.action.type === "app");
+  // a look while on, where the device supports one (or the key has one, to remove)
+  let hasOn = $derived(button?.action.type === "app" && (!!button.on || (features()?.fields.includes("button.on") ?? true)));
   let clip = $derived(doc.clip);
 
   function paste() {

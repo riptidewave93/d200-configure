@@ -2,7 +2,7 @@
 // the site checks a config exactly as the device does and shows keys exactly
 // as the device draws them. It sets a global "deck" object with:
 //
-//	validate(json) -> "" or why the config isn't valid
+//	validate(json) -> "" or why the device would refuse to save the config (deck.ParseStrict)
 //	embed(json) -> JSON {icons, unknown}: the icons the config's keys can show, from
 //	  those it has and the catalog, and the names found in neither
 //	setAssets(json) -> JSON: the config keys are drawn from (its icons embedded,
@@ -24,7 +24,7 @@
 //	layout -> JSON: {width, height, keys: [{x, y, w, h}]}, the key windows on the screen
 //	iconNames -> JSON: every icon in the catalog, sorted
 //	iconPath(name) -> {d, viewBox}: a catalog icon as SVG path data (nonzero fill), or null
-//	names -> JSON: the key, media key, system and font names, and app ops
+//	features -> JSON: what this version of the device software supports (deck.Features)
 //	defaultConfig -> JSON: the config a device uses without one
 //go:build js && wasm
 
@@ -34,7 +34,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"maps"
 	"slices"
 	"syscall/js"
 	"unicode"
@@ -75,7 +74,7 @@ func main() {
 		"layout":        layout(),
 		"iconNames":     marshal(icons.Names()),
 		"iconPath":      js.FuncOf(iconPath),
-		"names":         names(),
+		"features":      marshal(deck.Features()),
 		"defaultConfig": marshal(deck.DefaultConfig()),
 	})
 	select {}
@@ -85,7 +84,7 @@ func validate(_ js.Value, args []js.Value) any {
 	if len(args) != 1 || args[0].Type() != js.TypeString {
 		return "validate needs the config as a string"
 	}
-	if _, err := deck.Parse([]byte(args[0].String())); err != nil {
+	if _, err := deck.ParseStrict([]byte(args[0].String())); err != nil {
 		return err.Error()
 	}
 	return ""
@@ -259,17 +258,6 @@ func layout() string {
 		keys[i] = rect{r.Min.X, r.Min.Y, r.Dx(), r.Dy()}
 	}
 	return marshal(map[string]any{"width": render.Width, "height": render.Height, "keys": keys})
-}
-
-func names() string {
-	return marshal(map[string]any{
-		"keys":      slices.Sorted(maps.Keys(deck.Keys)), // some are aliases of others
-		"modifiers": slices.Sorted(maps.Keys(deck.Modifiers)),
-		"usages":    slices.Sorted(maps.Keys(deck.UsageNames)),
-		"systems":   slices.Sorted(maps.Keys(deck.SystemNames)),
-		"fonts":     deck.BuiltinFonts,
-		"apps":      map[string][]string{deck.AppDiscord: deck.DiscordOps, deck.AppOBS: deck.OBSOps, deck.AppMedia: deck.MediaOps},
-	})
 }
 
 func marshal(v any) string {

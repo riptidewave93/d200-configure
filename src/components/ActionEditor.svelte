@@ -31,11 +31,23 @@
     label = "Does",
   }: { action: Action; types: string[]; label?: string | null } = $props();
 
-  const { doc, device, deck } = app();
-  let names = $derived(deck()?.names);
-  let known = $derived(new Set([...(names?.keys ?? []), ...(names?.modifiers ?? [])]));
-  let apps = $derived(names?.apps ?? {});
-  let args = $derived(opArgs[`${action.app}.${action.op}`] ?? []);
+  const { doc, device, deck, features } = app();
+  // what the device supports, plus what this action already has, so the
+  // lists show it (saving says what the device can't take)
+  let f = $derived(features());
+  const plus = (l: string[] | undefined, v: unknown) =>
+    l && typeof v === "string" && v && !l.includes(v) ? [...l, v] : l;
+  let offered = $derived(types.filter((t) => !t || !f || f.actions.includes(t) || t === action.type));
+  let known = $derived(new Set([...(f?.keys ?? []), ...(f?.modifiers ?? [])]));
+  let apps = $derived.by(() => {
+    const a: Record<string, string[]> = { ...(f?.apps ?? {}) };
+    if (action.app) a[action.app] = plus(a[action.app] ?? [], action.op)!;
+    return Object.fromEntries(Object.entries(a).filter(([k, ops]) => ops.length || k === action.app));
+  });
+  // an app's args the device knows; one it doesn't know the app of takes any
+  const argOK = (name: string) => !f?.args[action.app ?? ""] || f.args[action.app!].includes(name) || action.args?.[name] !== undefined;
+  let args = $derived((opArgs[`${action.app}.${action.op}`] ?? []).filter((a) => argOK(a.name)));
+  let canFallback = $derived(!!action.fallback || (f?.fields.includes("action.fallback") ?? true));
   let hostApp = $derived(device.host?.apps?.find((a) => a.name === action.app));
   // what the device does by itself while the PC helper can't, e.g. Discord
   // mute presses Ctrl+Shift+M
@@ -121,14 +133,14 @@
 <label>
   {#if label}<span>{label}</span>{/if}
   <select value={action.type ?? ""} onchange={(e) => setType(e.currentTarget.value)} aria-label={label ?? "Action"}>
-    {#if types.some((t) => !isPC(t))}
+    {#if offered.some((t) => !isPC(t))}
       <optgroup label="On the device">
-        {#each types.filter((t) => !isPC(t)) as t (t)}<option value={t}>{typeName(t)}</option>{/each}
+        {#each offered.filter((t) => !isPC(t)) as t (t)}<option value={t}>{typeName(t)}</option>{/each}
       </optgroup>
     {/if}
-    {#if types.some(isPC)}
+    {#if offered.some(isPC)}
       <optgroup label="On the PC (needs the PC helper)">
-        {#each types.filter(isPC) as t (t)}<option value={t}>{typeName(t)}</option>{/each}
+        {#each offered.filter(isPC) as t (t)}<option value={t}>{typeName(t)}</option>{/each}
       </optgroup>
     {/if}
   </select>
@@ -142,7 +154,7 @@
     onchange={(e) => (action.usage = e.currentTarget.value === "number" ? 0xcd : e.currentTarget.value)}
     aria-label="Media key"
   >
-    {#each names?.usages ?? Object.keys(usageNames) as u (u)}<option value={u}>{usageNames[u] ?? u}</option>{/each}
+    {#each plus(f?.usages, action.usage) ?? Object.keys(usageNames) as u (u)}<option value={u}>{usageNames[u] ?? u}</option>{/each}
     <option value="number">Other, by usage number</option>
   </select>
   {#if usageNumber}
@@ -153,7 +165,7 @@
   {/if}
 {:else if action.type === "hid-system"}
   <select bind:value={action.system} aria-label="Sleep or power off">
-    {#each names?.systems ?? Object.keys(systemNames) as s (s)}<option value={s}>{systemNames[s] ?? s}</option>{/each}
+    {#each plus(f?.systems, action.system) ?? Object.keys(systemNames) as s (s)}<option value={s}>{systemNames[s] ?? s}</option>{/each}
   </select>
 {:else if action.type === "type-text"}
   <label>
@@ -286,7 +298,7 @@
       />
     </label>
   {/each}
-  {#if action.app === "media" && action.op === "now-playing"}
+  {#if action.app === "media" && action.op === "now-playing" && argOK("show")}
     <label>
       <span>Shows</span>
       <select value={action.args?.show ?? "art"} onchange={(e) => setShow(e.currentTarget.value)}>
@@ -299,7 +311,7 @@
         <input
           type="number"
           min="1"
-          max={maxSongCycle}
+          max={f?.limits.song_cycle ?? maxSongCycle}
           placeholder={String(defaultSongCycle)}
           value={action.args?.cycle ?? ""}
           onchange={(e) => setArg("cycle", e.currentTarget.value, true)}
@@ -322,7 +334,7 @@
   </p>
 {/if}
 
-{#if isPC(action.type) && types.some(isPC)}
+{#if isPC(action.type) && types.some(isPC) && canFallback}
   <details class="fallback" open={!!action.fallback}>
     <summary>Without the PC helper</summary>
     {#if action.fallback}

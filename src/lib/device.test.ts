@@ -63,6 +63,15 @@ describe("device", () => {
     await d.disconnect();
   });
 
+  it("says when a device's software is newer than the site", async () => {
+    const newer = new FakeDevice();
+    newer.hello.protocol = 5;
+    const d = new Device();
+    await d.open(newer);
+    expect(d.state).toBe("none");
+    expect(d.error).toBe("This device's software is newer than this site. Reload the page.");
+  });
+
   it("connects to a device that can't take the time", async () => {
     const older = new FakeDevice();
     older.unknown.add(Cmd.Time);

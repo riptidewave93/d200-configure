@@ -1,6 +1,8 @@
 // The config channel protocol, as in d200-deck's proto/raw.go and docs/api.md.
 // Names follow the Go ones so the two are easy to compare.
 
+import type { Features } from "./features";
+
 // Input reports are 64 bytes (protocol 3) or 1024 (protocol 4). A reply's
 // header has a 1-byte length in the first and a 2-byte one in the second,
 // so each report is read by its size.
@@ -17,6 +19,8 @@ export const RawUsagePage = 0xffd2;
 // reports and gzipped config transfers.
 export const Version = 3;
 export const VersionLarge = 4;
+// the newest the site talks: a device above it has newer software than the page
+export const VersionMax = 4;
 
 export const Cmd = {
   Hello: 0x01,
@@ -72,6 +76,7 @@ export interface Hello {
   keys: number;
   model?: string; // e.g. "ulanzi,d200", its device tree's first compatible; older devices don't send it
   ipv4?: string;
+  features?: Features; // what its software supports; older software doesn't send it
 }
 
 export interface HostApp {

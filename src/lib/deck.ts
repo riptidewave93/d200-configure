@@ -4,16 +4,8 @@
 import "../wasm/wasm_exec.js";
 import wasmURL from "../wasm/deck.wasm?url";
 import type { Action, Button, Config, IconEntry, Look } from "./config";
+import type { Features } from "./features";
 import type { Layout } from "./layout";
-
-export interface Names {
-  keys: string[];
-  modifiers: string[];
-  usages: string[];
-  systems: string[];
-  fonts: string[];
-  apps: Record<string, string[]>;
-}
 
 // RGBA pixels, as in ImageData
 export interface Pixels {
@@ -71,7 +63,7 @@ export interface Deck {
   // can't run an app action, if it has something built in
   builtinFallback(a: Action): Action | null;
   layout: Layout;
-  names: Names;
+  features: Features; // the site's own: what its copy of the device code supports
   icons: string[];
   hasIcon(name: string): boolean; // in the catalog
   iconPath(name: string): IconPath | null;
@@ -99,7 +91,7 @@ interface Exports {
   layout: string;
   iconNames: string;
   iconPath(name: string): IconPath | null;
-  names: string;
+  features: string;
   defaultConfig: string;
 }
 
@@ -164,7 +156,7 @@ async function start(code?: BufferSource): Promise<Deck> {
     icons,
     hasIcon: (name) => iconSet.has(name),
     iconPath: (name) => x.iconPath(name),
-    names: JSON.parse(x.names),
+    features: JSON.parse(x.features),
     defaultConfig: () => JSON.parse(x.defaultConfig),
   };
 }

@@ -82,11 +82,19 @@ describe("deck (WebAssembly)", () => {
     expect(px.data.some((v, i) => i % 4 === 0 && v > 200)).toBe(true);
   });
 
-  it("lists names", async () => {
-    const { names } = await deck();
-    expect(names.keys).toContain("f13");
-    expect(names.modifiers).toContain("ctrl");
-    expect(names.usages).toContain("play-pause");
-    expect(names.apps.discord).toContain("mute");
+  it("lists what it supports", async () => {
+    const { features } = await deck();
+    expect(features.keys).toContain("f13");
+    expect(features.modifiers).toContain("ctrl");
+    expect(features.usages).toContain("play-pause");
+    expect(features.apps.discord).toContain("mute");
+    expect(features.fields).toContain("button.on");
+    expect(features.limits.label).toBe(32);
+  });
+
+  it("refuses fields the device doesn't know, as the device does", async () => {
+    const d = await deck();
+    const c = { version: 1, home: "main", pages: { main: { keys: { "0": { label: "Hi", glow: true, action: {} } } } } };
+    expect(d.validate(c)).toContain("pages.main.keys.0.glow: unknown field");
   });
 });

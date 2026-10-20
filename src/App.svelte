@@ -11,6 +11,7 @@
   import { load, type Deck } from "./lib/deck";
   import { Device, message } from "./lib/device.svelte";
   import { Doc } from "./lib/doc.svelte";
+  import { forDevice, newer, runnable, unsupportedMessage } from "./lib/features";
   import { fontText, growFonts } from "./lib/fonts";
   import { modelFor } from "./lib/models";
   import { animatedPixels, maxAnimPixels } from "./lib/pictures";
@@ -20,7 +21,11 @@
   const doc = new Doc();
   let deck = $state<Deck | null>(null);
   let model = $derived(modelFor(device.hello));
-  setApp({ doc, device, deck: () => deck, model: () => model });
+  // what the device takes, and of that what to offer
+  let takes = $derived(deck ? forDevice(deck.features, device.hello?.features) : null);
+  let offered = $derived(takes ? runnable(takes, device.host) : null);
+  let newerDevice = $derived(!!deck && newer(deck.features, device.hello?.features));
+  setApp({ doc, device, deck: () => deck, model: () => model, features: () => offered });
 
   let error = $state("");
   let notice = $state("");
@@ -130,6 +135,11 @@
         error = `Can't save: no icon called ${names}.`;
         return;
       }
+    }
+    const lacks = takes && doc.config ? unsupportedMessage(doc.config, takes) : "";
+    if (lacks) {
+      error = lacks;
+      return;
     }
     const json = JSON.stringify(doc.config);
     const why = deck?.validate(json);
@@ -299,6 +309,7 @@
     </p>
   {/if}
   {#if device.error}<p class="warn bad-line">{device.error}</p>{/if}
+  {#if newerDevice}<p class="warn bad-line">This device's software is newer than this site. Reload the page.</p>{/if}
   {#if error}<p class="warn bad-line">{error}</p>{/if}
   {#if device.asking}
     <p class="asking" role="status">Press <strong>{device.asking}</strong> on the device to confirm.</p>

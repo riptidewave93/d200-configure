@@ -1,6 +1,5 @@
 // The config file, as d200-deck's deck package and docs/config.md. Edits
-// change these objects in place, so fields the site doesn't know survive a
-// save.
+// change these objects in place.
 
 export interface Config {
   version: number;

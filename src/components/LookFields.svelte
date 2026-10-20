@@ -13,10 +13,23 @@
   let { look, key }: { look: Look; key: number } = $props();
   const uid = $props.id();
 
-  const { doc, deck } = app();
+  const { doc, deck, features } = app();
+  let f = $derived(features());
+  // what the device supports, or this look already uses (to change it)
+  const can = (...fields: string[]) => !f || fields.every((x) => f!.fields.includes(x));
+  let canFonts = $derived(can("button.font") || !!look.font);
+  let canCustomFonts = $derived(can("config.fonts"));
+  let canImages = $derived(can("button.image", "config.images") || !!look.image);
+  let canPictureIcons = $derived(can("icon.png"));
+  let maxLabel = $derived(f?.limits.label ?? 32);
+  let maxLines = $derived(f?.limits.label_lines ?? 3);
   let images = $derived(Object.keys(doc.config?.images ?? {}).sort());
   let customFonts = $derived(Object.keys(doc.config?.fonts ?? {}).sort());
-  let builtinFonts = $derived(deck()?.names.fonts ?? []);
+  let builtinFonts = $derived.by(() => {
+    const l = f?.fonts ?? [];
+    const font = look.font;
+    return font && !l.includes(font) && !doc.config?.fonts?.[font] ? [...l, font] : l;
+  });
   // catalog fonts not in the config yet
   let moreFonts = $derived(catalogFonts.filter((f) => !doc.config?.fonts?.[f.id]));
 
@@ -84,7 +97,7 @@
     if (!icons[id]?.png) {
       try {
         let png = await emojiPNG(e.char);
-        if (atob(png).length > MaxIconBytes) png = await emojiPNG(e.char, 96);
+        if (atob(png).length > (f?.limits.icon_bytes ?? MaxIconBytes)) png = await emojiPNG(e.char, 96);
         icons[id] = { png };
       } catch {
         emojiError = "This browser couldn't draw that emoji.";
@@ -113,24 +126,25 @@
     fileInput.click();
   }
 
-  async function addPicture(f: File | undefined) {
+  async function addPicture(file: File | undefined) {
     const d = deck();
-    if (!f || !d || !adding) return;
+    if (!file || !d || !adding) return;
     pictureNote = pictureError = "";
     working = true;
     try {
-      const bytes = await readPicture(f);
+      const bytes = await readPicture(file);
       const c = doc.config!;
       if (adding === "image") {
         const k = d.layout.keys[key];
-        const fit = d.fitImage(bytes, Math.min(k.w, 512), Math.min(k.h, 512), MaxImageBytes);
-        const id = pictureID(f.name, Object.keys(c.images ?? {}));
+        const side = f?.limits.image_side ?? 512;
+        const fit = d.fitImage(bytes, Math.min(k.w, side), Math.min(k.h, side), f?.limits.image_bytes ?? MaxImageBytes);
+        const id = pictureID(file.name, Object.keys(c.images ?? {}));
         (c.images ??= {})[id] = fit.data;
         setImage(id);
         pictureNote = fitNote(fit);
       } else {
-        const fit = d.fitImage(bytes, iconSide, iconSide, MaxIconBytes);
-        const id = pictureID(f.name, Object.keys(c.icons ?? {}), "pic-");
+        const fit = d.fitImage(bytes, iconSide, iconSide, f?.limits.icon_bytes ?? MaxIconBytes);
+        const id = pictureID(file.name, Object.keys(c.icons ?? {}), "pic-");
         (c.icons ??= {})[id] = { png: fit.data };
         setIcon(id);
         pictureNote = fitNote(fit);
@@ -152,17 +166,22 @@
     return font ? d.fontLacks(font, look.label) : d.missingGlyphs(look);
   });
 
-  // the device keeps up to 32 characters on up to 3 lines
   let labelError = $derived.by(() => {
     const l = look.label ?? "";
-    if ([...l].length > 32) return "Up to 32 characters.";
-    if (l.split("\n").length > 3) return "Up to 3 lines.";
+    if ([...l].length > maxLabel) return `Up to ${maxLabel} characters.`;
+    if (l.split("\n").length > maxLines) return `Up to ${maxLines} lines.`;
     return "";
   });
 </script>
 
-<IconField value={look.icon} onchange={setIcon} onemoji={setEmoji} onpicture={() => choose("icon")} />
+<IconField
+  value={look.icon}
+  onchange={setIcon}
+  onemoji={canPictureIcons ? setEmoji : undefined}
+  onpicture={canPictureIcons ? () => choose("icon") : undefined}
+/>
 {#if emojiError}<p class="bad small">{emojiError}</p>{/if}
+{#if canImages}
 <div class="field">
   <span id="{uid}-image">Or image, filling the key</span>
   <div class="row">
@@ -182,6 +201,7 @@
     <button type="button" class="plain" disabled={working} onclick={() => choose("image")}>Add…</button>
   </div>
 </div>
+{/if}
 <input
   type="file"
   accept="image/*"
@@ -200,26 +220,30 @@
 {#if labelError}<p class="bad">{labelError}</p>{/if}
 {#if missing}<p class="warn small">The device can't draw {[...missing].join(" ")} in this font: it shows a box.</p>{/if}
 
+{#if canFonts}
 <div class="row">
   <label class="grow">
     <span>Font</span>
     <select value={look.font ?? ""} onchange={pickFont} disabled={fontWorking}>
       <option value="">Default</option>
       <optgroup label="On the device">
-        {#each builtinFonts as f (f)}<option value={f}>{f}</option>{/each}
+        {#each builtinFonts as name (name)}<option value={name}>{name}</option>{/each}
       </optgroup>
       {#if customFonts.length}
         <optgroup label="In this config">
-          {#each customFonts as f (f)}<option value={f}>{fontName(f)}</option>{/each}
+          {#each customFonts as id (id)}<option value={id}>{fontName(id)}</option>{/each}
         </optgroup>
       {/if}
-      <optgroup label="More fonts">
-        {#each moreFonts as f (f.id)}<option value={f.id}>{f.name}</option>{/each}
-        <option value={fromFile}>From a file…</option>
-      </optgroup>
+      {#if canCustomFonts}
+        <optgroup label="More fonts">
+          {#each moreFonts as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+          <option value={fromFile}>From a file…</option>
+        </optgroup>
+      {/if}
     </select>
   </label>
 </div>
+{/if}
 <input
   type="file"
   accept=".ttf,.otf,.woff,.woff2,font/*"
