@@ -18,7 +18,11 @@ describe("deck (WebAssembly)", () => {
 
   it("knows what app keys do by themselves without the PC helper", async () => {
     const d = await deck();
-    expect(d.builtinFallback({ type: "app", app: "discord", op: "mute" })).toEqual({ type: "hid-key", keys: ["ctrl", "shift", "m"] });
+    expect(d.builtinFallback({ type: "app", app: "discord", op: "mute" })).toEqual({
+      type: "hid-key",
+      keys: ["ctrl", "shift", "m"],
+      mac_keys: ["gui", "shift", "m"],
+    });
     expect(d.builtinFallback({ type: "app", app: "media", op: "next" })).toEqual({ type: "hid-consumer", usage: "next-track" });
     expect(d.builtinFallback({ type: "app", app: "obs", op: "scene" })).toBeNull();
   });

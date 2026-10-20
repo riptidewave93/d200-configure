@@ -29,6 +29,7 @@ describe("explain", () => {
     expect(explain('page "main" key 2: step 1: mac_keys: unknown key "x"').text).toBe(
       "Key 3 on main: step 2: on a Mac: record a key combo.",
     );
+    expect(explain('page "main" key 2: mac_keys: only on hid-key').text).toBe("Key 3 on main: on a Mac: only key combos have one.");
   });
 
   it("names the key of an unknown field", () => {

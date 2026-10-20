@@ -25,6 +25,7 @@ const fixes: [RegExp, string | ((m: RegExpMatchArray) => string)][] = [
   [/^icon and image are both set/, "pick an icon or an image, not both"],
   [/^font ".*" does not exist/, "pick a font"],
   [/^image ".*" does not exist/, "pick an image"],
+  [/^only on hid-key/, "only key combos have one"],
 ];
 
 function fix(why: string): string {
