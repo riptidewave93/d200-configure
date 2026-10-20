@@ -2,7 +2,19 @@
 // config, and what it says on its own (events).
 
 import { Conn, DeviceError, type Progress, type Transport } from "./conn";
-import { Event, Status, TimePeriod, Version, VersionMax, type ConfigInfo, type Hello, type HostInfo, type KeyEvent, type Settings } from "./proto";
+import {
+  Event,
+  Status,
+  TimePeriod,
+  Version,
+  VersionMax,
+  type ConfigInfo,
+  type Hello,
+  type HostInfo,
+  type KeyEvent,
+  type Offset,
+  type Settings,
+} from "./proto";
 import { browserOS, hostOS, type OS } from "./mac";
 import { HIDTransport, known, pick } from "./webhid";
 
@@ -18,8 +30,11 @@ const text = new TextDecoder();
 // How often to ask whether the PC helper is running: nothing tells us.
 const hostPoll = 5000;
 
-// At most 10 brightness changes a second while a slider moves.
-const brightnessGap = 100;
+// At most 10 changes a second while a slider moves or a button is pressed.
+const changeGap = 100;
+// The alignment pattern ends by itself a minute after the last change, so
+// it's sent again while it shows.
+const patternRefresh = 20_000;
 
 // The serial number of the device used last, so that with several allowed
 // the site goes back to the same one. Only in this browser.
@@ -68,10 +83,15 @@ export class Device {
   private clock = 0;
   // the computer the site runs on, which the device is plugged into
   os: OS = browserOS();
-  private brightness = 0;
-  private sendingBrightness = false;
+  private brightnessSender = latest((brightness: number) => this.change({ brightness }));
+  private offsetSender = latest((screen_offset: Offset) => this.change({ screen_offset }));
+  private pattern = 0;
 
   constructor() {
+    // a closed tab ends the alignment pattern, if it can
+    globalThis.addEventListener?.("pagehide", () => {
+      if (this.pattern) this.showPattern(false).catch(() => {});
+    });
     if (typeof navigator !== "undefined" && "hid" in navigator) {
       navigator.hid.addEventListener("connect", (e) => this.plugged(e.device));
       navigator.hid.addEventListener("disconnect", (e) => this.unplugged(e.device));
@@ -162,6 +182,7 @@ export class Device {
 
   private async drop() {
     clearInterval(this.poll);
+    clearInterval(this.pattern);
     clearInterval(this.clock);
     const conn = this.conn;
     this.conn = null;
@@ -287,23 +308,28 @@ export class Device {
     }
   }
 
+  private async change(s: Settings) {
+    this.settings = await this.connected().settings(s);
+  }
+
   // setBrightness sets the screen's brightness. It applies at once, so a
-  // slider calls it as it moves: the device gets at most one change per
-  // brightnessGap, and always the last.
-  async setBrightness(percent: number) {
-    this.brightness = percent;
-    if (this.sendingBrightness) return;
-    this.sendingBrightness = true;
-    try {
-      let sent = -1;
-      while (sent !== this.brightness) {
-        sent = this.brightness;
-        this.settings = await this.connected().settings({ brightness: sent });
-        await new Promise((r) => setTimeout(r, brightnessGap));
-      }
-    } finally {
-      this.sendingBrightness = false;
-    }
+  // slider calls it as it moves (see latest).
+  setBrightness(percent: number) {
+    return this.brightnessSender(percent);
+  }
+
+  // setOffset moves the picture on the screen; the device keeps it within
+  // its range.
+  setOffset(o: Offset) {
+    return this.offsetSender(o);
+  }
+
+  // showPattern shows the alignment pattern on the device, or ends it.
+  async showPattern(on: boolean) {
+    clearInterval(this.pattern);
+    this.pattern = 0;
+    if (on) this.pattern = window.setInterval(() => this.change({ screen_pattern: true }).catch(() => {}), patternRefresh);
+    await this.change({ screen_pattern: on });
   }
 
   async identify(key: number) {
@@ -332,4 +358,26 @@ export function message(err: unknown): string {
   const s = err instanceof Error ? err.message : String(err);
   // the device's reasons start lower case, as Go errors do
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// latest sends values as they come, at most one per changeGap, always the
+// last: a slider or a held button sends many.
+function latest<T>(send: (v: T) => Promise<void>): (v: T) => Promise<void> {
+  let want: T;
+  let busy = false;
+  return async (v: T) => {
+    want = v;
+    if (busy) return;
+    busy = true;
+    try {
+      let sent: string | undefined;
+      while (sent !== JSON.stringify(want)) {
+        sent = JSON.stringify(want);
+        await send(want);
+        await new Promise((r) => setTimeout(r, changeGap));
+      }
+    } finally {
+      busy = false;
+    }
+  };
 }

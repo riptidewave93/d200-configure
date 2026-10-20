@@ -41,7 +41,17 @@ export class FakeDevice implements Transport {
     ipv4: "198.18.0.1",
   };
   host: HostInfo = { connected: false };
-  settingsState: Settings = { usb_drive: true, usb_net4: "", brightness: 100, brightness_min: 10, sleep_screen: "zzz" };
+  settingsState: Settings = {
+    usb_drive: true,
+    usb_net4: "",
+    brightness: 100,
+    brightness_min: 10,
+    sleep_screen: "zzz",
+    screen_offset: { x: 0, y: 0 },
+    screen_offset_min: { x: -20, y: -20 },
+    screen_offset_max: { x: 20, y: 20 },
+    screen_pattern: false,
+  };
   settingsChanges: Settings[] = [];
   config: Uint8Array;
   identified: number[] = []; // -1: the whole screen
@@ -141,6 +151,13 @@ export class FakeDevice implements Transport {
         Object.assign(this.settingsState, change);
         const s = this.settingsState;
         if (s.brightness !== undefined) s.brightness = Math.min(100, Math.max(s.brightness_min ?? 0, s.brightness));
+        const clamp = (v: number, lo = v, hi = v) => Math.min(hi, Math.max(lo, v));
+        if (s.screen_offset) {
+          s.screen_offset = {
+            x: clamp(s.screen_offset.x, s.screen_offset_min?.x, s.screen_offset_max?.x),
+            y: clamp(s.screen_offset.y, s.screen_offset_min?.y, s.screen_offset_max?.y),
+          };
+        }
         return [Status.OK, json(s)];
       }
       case Cmd.ConfigInfo: {

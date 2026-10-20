@@ -117,6 +117,48 @@ describe("device", () => {
     await d.disconnect();
   });
 
+  it("moves the picture, sending the last of quick changes, and the device keeps it in range", async () => {
+    const fake = new FakeDevice();
+    const d = new Device();
+    await d.open(fake);
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const done = [1, 2, 3].map((x) => d.setOffset({ x, y: 0 }));
+    await vi.advanceTimersByTimeAsync(1000);
+    await Promise.all(done);
+    expect(fake.settingsChanges).toEqual([{ screen_offset: { x: 1, y: 0 } }, { screen_offset: { x: 3, y: 0 } }]);
+    const far = d.setOffset({ x: 99, y: -99 });
+    await vi.advanceTimersByTimeAsync(200);
+    await far;
+    expect(d.settings?.screen_offset).toEqual({ x: 20, y: -20 });
+    await d.disconnect();
+  });
+
+  it("keeps the alignment pattern up while it shows, and ends it", async () => {
+    const fake = new FakeDevice();
+    const d = new Device();
+    await d.open(fake);
+    // fake intervals; the fake device answers in real time
+    const wait = async (ms: number) => {
+      for (let t = 0; t < ms; t += 5000) {
+        await vi.advanceTimersByTimeAsync(5000);
+        await new Promise((r) => setTimeout(r, 5));
+      }
+    };
+    await d.showPattern(true);
+    expect(d.settings?.screen_pattern).toBe(true);
+    await wait(45_000); // sent again every 20 s: the device ends it after 60 s
+    expect(fake.settingsChanges).toEqual([{ screen_pattern: true }, { screen_pattern: true }, { screen_pattern: true }]);
+    await d.showPattern(false);
+    await wait(60_000);
+    expect(fake.settingsChanges.at(-1)).toEqual({ screen_pattern: false });
+    expect(fake.settingsChanges).toHaveLength(4);
+    // a disconnect stops sending it too
+    await d.showPattern(true);
+    await d.disconnect();
+    await wait(60_000);
+    expect(fake.settingsChanges).toHaveLength(5);
+  });
+
   it("says when a device's software is newer than the site", async () => {
     const newer = new FakeDevice();
     newer.hello.protocol = 5;

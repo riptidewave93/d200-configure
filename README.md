@@ -9,7 +9,8 @@ Set up your Ulanzi D200's keys from your browser: **https://riptidewave93.github
   PC helper, keys that open a website or program, or control Discord, OBS or your music player
 - A preview of each key as the D200 will show it, and a warning when a page has more animation than
   the D200 can play
-- The D200's settings: brightness, the screen while your computer sleeps, the USB drive and network
+- The D200's settings: brightness, the screen while your computer sleeps, lining the picture up
+  with the keys, the USB drive and network
 
 ## What you need
 

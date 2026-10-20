@@ -109,6 +109,19 @@ export interface Settings {
   // absent on older software and screens that can't dim
   sleep_screen?: "zzz" | "off";
   host_os?: "mac" | "other" | ""; // the computer, "" if not known: Macs get keys' mac_keys
+  // where the picture sits on the screen, in pixels (x right, y down); the
+  // device clamps it to min and max, which are read only
+  screen_offset?: Offset;
+  screen_offset_min?: Offset;
+  screen_offset_max?: Offset;
+  // the alignment pattern: not saved, and it ends by itself a minute after
+  // the last change
+  screen_pattern?: boolean;
+}
+
+export interface Offset {
+  x: number;
+  y: number;
 }
 
 export interface ConfigInfo {

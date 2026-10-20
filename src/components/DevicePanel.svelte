@@ -1,6 +1,8 @@
 <!-- The connected device: what it runs, its settings and its own web pages. -->
 <script lang="ts">
   import { app } from "../lib/context";
+  import { onDestroy } from "svelte";
+  import { canAlign, nudge, offsetWords } from "../lib/align";
   import { message } from "../lib/device.svelte";
 
   const { device } = app();
@@ -32,6 +34,42 @@
     }
   }
 
+  // Align screen: the device shows a pattern while the picture is moved
+  let aligning = $state(false);
+  let offset = $state({ x: 0, y: 0 });
+  async function align(on: boolean) {
+    error = "";
+    try {
+      if (on) offset = device.settings?.screen_offset ?? { x: 0, y: 0 };
+      aligning = on;
+      await device.showPattern(on);
+    } catch (err) {
+      error = message(err);
+    }
+  }
+  async function move(to: { x: number; y: number }) {
+    offset = to;
+    error = "";
+    try {
+      await device.setOffset(to);
+    } catch (err) {
+      error = message(err);
+    }
+  }
+  const step = (dx: number, dy: number) => nudge(offset, dx, dy, device.settings);
+  const same = (a: { x: number; y: number }, b: { x: number; y: number }) => a.x === b.x && a.y === b.y;
+  const arrows: Record<string, [number, number]> = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+  function arrowKey(e: KeyboardEvent) {
+    const d = arrows[e.key];
+    if (!aligning || !d || (e.target as HTMLElement).closest?.("input, select, textarea")) return;
+    e.preventDefault();
+    move(step(...d));
+  }
+  // closing the panel ends the pattern
+  onDestroy(() => {
+    if (aligning) device.showPattern(false).catch(() => {});
+  });
+
   let flashed = $state(false);
   async function flash() {
     error = "";
@@ -54,6 +92,8 @@
   }
   let host = $derived(device.host);
 </script>
+
+<svelte:window onkeydown={arrowKey} />
 
 <div>
   <div class="row head">
@@ -106,6 +146,34 @@
           <option value="off">Off</option>
         </select>
       </label>
+    {/if}
+    {#if canAlign(device.hello, device.settings)}
+      {#if !aligning}
+        <button class="plain align-open" onclick={() => align(true)}>Align screen</button>
+      {:else}
+        <section class="align" aria-label="Align screen">
+          <h3>Align screen</h3>
+          <p class="small">Move the picture until each white frame sits inside its key.</p>
+          <div class="pad">
+            {#each [["up", "↑", 0, -1], ["left", "←", -1, 0], ["right", "→", 1, 0], ["down", "↓", 0, 1]] as const as [name, arrow, dx, dy] (name)}
+              <button
+                class="quiet {name}"
+                aria-label="Move {name}"
+                disabled={same(step(dx, dy), offset)}
+                onclick={() => move(step(dx, dy))}>{arrow}</button
+              >
+            {/each}
+          </div>
+          <p class="muted small where" role="status">{offsetWords(offset)}</p>
+          <div class="row">
+            <button class="plain" disabled={same(offset, { x: 0, y: 0 })} onclick={() => move({ x: 0, y: 0 })}
+              >Reset to default</button
+            >
+            <span class="grow"></span>
+            <button onclick={() => align(false)}>Done</button>
+          </div>
+        </section>
+      {/if}
     {/if}
     {#if device.settings.usb_drive !== undefined}
       <label class="row check">
@@ -173,5 +241,59 @@
   }
   .debug {
     margin: 12px 0 0;
+  }
+  .align-open {
+    display: flex;
+    margin: 0 0 12px -6px;
+  }
+  .align {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    margin: 0 0 12px;
+  }
+  .align h3 {
+    margin: 0 0 4px;
+    font-size: 14px;
+  }
+  .align p {
+    margin: 0 0 8px;
+  }
+  .pad {
+    display: grid;
+    grid-template-columns: repeat(3, 40px);
+    grid-template-rows: repeat(3, 40px);
+    gap: 4px;
+    grid-template-areas: ". up ." "left . right" ". down .";
+    justify-content: center;
+    margin: 4px 0 8px;
+  }
+  .pad button {
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    padding: 0;
+    color: var(--fg);
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .pad button:disabled {
+    color: var(--muted);
+  }
+  .pad .up {
+    grid-area: up;
+  }
+  .pad .down {
+    grid-area: down;
+  }
+  .pad .left {
+    grid-area: left;
+  }
+  .pad .right {
+    grid-area: right;
+  }
+  .where {
+    text-align: center;
   }
 </style>
