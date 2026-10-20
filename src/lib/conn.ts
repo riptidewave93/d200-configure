@@ -148,7 +148,7 @@ export class Conn {
     return new Promise<Uint8Array>((resolve, reject) => {
       const timer = setTimeout(() => {
         if (this.pending?.seq === seq) this.pending = null;
-        reject(new Error("The device didn't answer."));
+        reject(new Error("The device didn't answer. Check the cable, then try again."));
       }, wait);
       const done = <T>(f: (v: T) => void) => (v: T) => {
         clearTimeout(timer);

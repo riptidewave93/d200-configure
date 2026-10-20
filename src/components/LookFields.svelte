@@ -41,6 +41,12 @@
   let fontNote = $state("");
   let fontError = $state("");
 
+  // why, as one sentence: a reason that's already one stands alone
+  function because(lead: string, err: unknown): string {
+    const s = (err instanceof Error ? err.message : String(err)).replace(/\.$/, "");
+    return s.startsWith("That ") ? `${s}.` : `${lead}: ${s.charAt(0).toLowerCase()}${s.slice(1)}.`;
+  }
+
   async function pickFont(e: Event & { currentTarget: HTMLSelectElement }) {
     const v = e.currentTarget.value;
     const d = deck();
@@ -75,7 +81,7 @@
       set(look, "font", id);
       if (cut) fontNote = "Made smaller to fit: it keeps only the characters labels use, until the page is closed.";
     } catch (err) {
-      fontError = `That font can't be used: ${err instanceof Error ? err.message : err}.`;
+      fontError = because("That font can't be used", err);
     } finally {
       fontWorking = false;
       fontInput.value = "";
@@ -150,7 +156,7 @@
         pictureNote = fitNote(fit);
       }
     } catch (err) {
-      pictureError = `That picture can't be used: ${err instanceof Error ? err.message : err}.`;
+      pictureError = because("That picture can't be used", err);
     } finally {
       working = false;
       fileInput.value = "";

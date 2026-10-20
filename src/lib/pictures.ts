@@ -26,7 +26,7 @@ export async function readPicture(f: File): Promise<Uint8Array> {
   try {
     img = await createImageBitmap(f);
   } catch {
-    throw new Error("That file isn't a picture this browser can read.");
+    throw new Error("That file isn't a picture.");
   }
   const s = Math.min(1, maxConvertSide / Math.max(img.width, img.height));
   const c = document.createElement("canvas");
@@ -34,7 +34,7 @@ export async function readPicture(f: File): Promise<Uint8Array> {
   c.height = Math.max(1, Math.round(img.height * s));
   c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
   const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, "image/png"));
-  if (!blob) throw new Error("That file isn't a picture this browser can read.");
+  if (!blob) throw new Error("That file isn't a picture.");
   return new Uint8Array(await blob.arrayBuffer());
 }
 

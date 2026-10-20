@@ -11,6 +11,7 @@
   import { load, type Deck } from "./lib/deck";
   import { Device, message } from "./lib/device.svelte";
   import { Doc } from "./lib/doc.svelte";
+  import { explain } from "./lib/errors";
   import { forDevice, newer, runnable, unsupportedMessage } from "./lib/features";
   import { fontText, growFonts } from "./lib/fonts";
   import { modelFor } from "./lib/models";
@@ -92,8 +93,22 @@
     }[device.state],
   );
 
-  // The device counts keys from 0; the page from 1, as people do.
-  const readable = (why: string) => why.replace(/\bkey (\d+)/g, (_, n) => `key ${Number(n) + 1}`);
+  // cantSave shows why the config can't be saved, and selects the key it's about
+  function cantSave(why: string) {
+    const p = explain(why);
+    if (p.page !== undefined && p.key !== undefined && doc.config?.pages[p.page]) {
+      doc.openPage(p.page);
+      doc.key = p.key;
+      error = p.text;
+    } else {
+      error = `Can't save: ${p.text}`;
+    }
+  }
+
+  function discard() {
+    fileMenu = false;
+    if (confirm("Discard your changes?")) doc.revert();
+  }
 
   device.onKey = (e) => {
     if (!e.release && doc.config) doc.key = e.key;
@@ -144,7 +159,7 @@
     const json = JSON.stringify(doc.config);
     const why = deck?.validate(json);
     if (why) {
-      error = `Can't save: ${readable(why)}.`;
+      cantSave(why);
       return;
     }
     working = "Saving";
@@ -158,7 +173,9 @@
       doc.markSaved();
       notice = "Saved";
     } catch (err) {
-      error = readable(message(err));
+      const why = err instanceof Error ? err.message : String(err);
+      if (/^page ".*" key \d+: /i.test(why)) cantSave(why);
+      else error = message(err);
     } finally {
       working = "";
     }
@@ -177,9 +194,13 @@
       error = "That file isn't a config.";
       return;
     }
+    if (typeof c !== "object" || c === null || !("version" in c || "pages" in c)) {
+      error = "That file isn't a config.";
+      return;
+    }
     const why = deck?.validate(c);
     if (why) {
-      error = `That file isn't a valid config: ${readable(why)}.`;
+      error = `That file can't be opened. ${explain(why).text}`;
       return;
     }
     // not on the device yet: Undo goes back to what is
@@ -309,22 +330,28 @@
       <button class="quiet small" onclick={dismissWarning} aria-label="Dismiss">✕</button>
     </p>
   {/if}
-  {#if device.error}<p class="warn bad-line">{device.error}</p>{/if}
-  {#if newerDevice}<p class="warn bad-line">This device's software is newer than this site. Reload the page.</p>{/if}
+  {#if device.error && !device.error.includes("Reload the page")}<p class="warn bad-line">{device.error}</p>{/if}
+  {#if newerDevice || device.error.includes("Reload the page")}
+    <div class="warn row bad-line">
+      <span class="grow">This device's software is newer than this site. Reload the page.</span>
+      <button onclick={() => location.reload()}>Reload</button>
+    </div>
+  {/if}
   {#if error}<p class="warn bad-line">{error}</p>{/if}
   {#if device.asking}
     <p class="asking" role="status">Press <strong>{device.asking}</strong> on the device to confirm.</p>
   {/if}
   {#if conflict}
     <div class="warn row">
-      <span class="grow">The device's config changed since it was read here.</span>
-      <button onclick={() => save(true)}>Replace it</button>
-      <button class="plain" onclick={loadFromDevice}>Load the device's</button>
+      <span class="grow">The device's keys changed since you opened them.</span>
+      <button onclick={() => save(true)}>Keep mine</button>
+      <button class="plain" onclick={loadFromDevice}>Use the device's</button>
     </div>
   {:else if device.changed}
     <div class="warn row">
-      <span class="grow">The device has a different config{doc.dirty ? ". Loading it drops your changes." : "."}</span>
-      <button onclick={loadFromDevice}>Load it</button>
+      <span class="grow">The device's keys changed since you opened them.</span>
+      {#if doc.dirty}<button onclick={() => save(true)}>Keep mine</button>{/if}
+      <button class={doc.dirty ? "plain" : ""} onclick={loadFromDevice}>Use the device's</button>
     </div>
   {/if}
 
