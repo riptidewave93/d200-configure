@@ -29,17 +29,12 @@ sudo udevadm control --reload && sudo udevadm trigger
 Without a device, **Open a config file** edits a saved `config.json`. **Save file** keeps a copy of
 the config on your PC.
 
-## Status
-
-Early. Editing keys, pages and actions, icons, emoji, pictures (animated GIFs too) and fonts, live
-key previews, and reading and saving the device's config work, tested on a device.
-
 ## Docs
 
 | Doc | Read it for |
 |---|---|
 | [docs/development.md](docs/development.md) | Building, running locally, testing with a device, publishing |
-| [docs/design.md](docs/design.md) | How the site works and why |
+| [docs/design.md](docs/design.md) | What to know before changing the site |
 
 ## The D200 project
 

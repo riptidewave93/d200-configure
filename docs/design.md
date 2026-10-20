@@ -1,263 +1,131 @@
 # Design
 
-How the site works, and why it works that way.
+What to know before changing the site. The protocol and config format are d200-deck's
+[api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md) and
+[config.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/config.md).
 
-## Goals
+## Rules
 
-- **Browser only.** The site talks to the device directly, over USB. No server, no account, and the
-  PC helper (deckhost) isn't needed.
-- **The device's rules.** A config the site accepts is one the device accepts, and a key looks the
-  same on the page as on the device.
-- **Static hosting.** The site is plain files on GitHub Pages, so a site update never needs a
-  firmware update, and the reverse.
+- **Browser only.** The site talks to the device over WebHID. No server; GitHub Pages serves it.
+- **The device's own code.** Checking configs, drawing keys, icons and font subsetting come from
+  d200-deck's Go packages, built to WebAssembly. Don't rewrite them in TypeScript.
+- **Only what the device supports** ([below](#older-and-newer-devices)).
+- **UI text** says "device", not "D200".
 
-## Pieces
+## Code
 
-```
-Browser                                              Device
-  UI ── conn.ts ── webhid.ts ════ USB (HID) ════════ deckd (config channel)
-   │
-   └── deck.ts ── WebAssembly (d200-deck's Go code)
-```
-
-| Part | Job |
+| Path | What |
 |---|---|
-| UI (`src/App.svelte`, `src/components/`) | The device face, pages, the key editor, files |
-| Connection (`src/lib/conn.ts`, `webhid.ts`, `device.svelte.ts`) | Talks to the device: see [Talking to the device](#talking-to-the-device) |
-| Config (`src/lib/doc.svelte.ts`) | The config being edited |
-| WebAssembly (`wasm/main.go`, `src/lib/deck.ts`) | Checks configs, draws keys, lists icons and names, from d200-deck's own code |
+| `src/App.svelte` | The page: connecting, saving, files |
+| `src/components/` | Page tree, breadcrumb, device face, key and page panels, action editor, device panel |
+| `src/lib/proto.ts`, `conn.ts` | The protocol and a connection, after d200-deck's `proto/` (same names) |
+| `src/lib/webhid.ts`, `device.svelte.ts` | Opening the device, reconnecting after it re-plugs |
+| `src/lib/gzip.ts` | Gzipped configs (protocol 4) |
+| `src/lib/doc.svelte.ts` | The config being edited |
+| `src/lib/features.ts` | What to offer, and the pre-save check |
+| `src/lib/actions.ts`, `keys.ts` | Words for actions, keys and app ops |
+| `src/lib/pages.ts` | The page tree, from the keys that open pages |
+| `src/lib/deck.ts`, `draw.ts` | Loading the WebAssembly part, drawing keys with it |
+| `src/lib/emoji.ts`, `pictures.ts`, `fonts.ts` | Emoji, pictures and fonts going into the config |
+| `src/lib/models.ts` | The kinds of device: keys and face |
+| `src/lib/fakedevice.ts` | An in-memory device, for tests and `?fake` |
+| `wasm/main.go` | The WebAssembly part |
+| `wasm/fit/` | Fitting pictures to the device's limits |
 
-Stack: TypeScript, [Svelte 5](https://svelte.dev/) and [Vite](https://vite.dev/). Svelte compiles
-to small plain JavaScript and keeps the UI's state simple, which suits an editor with many linked
-fields.
+Tests sit next to the code, as `*.test.ts` and `*_test.go`.
 
-## Talking to the device
+## The WebAssembly part
 
-The device's USB config channel is a vendor HID interface (usage page `0xFFD2`), which Chrome and
-Edge reach through [WebHID](https://developer.mozilla.org/docs/Web/API/WebHID_API). The protocol is
-d200-deck's [docs/api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md);
-`proto.ts` and `conn.ts` follow its Go client (`proto/`) closely, with the same names.
-
-- **Requests.** `Conn` sends one request at a time, queuing the rest, and waits up to 2 s for each
-  reply. Why, and how replies are matched on a channel other programs share, is in
-  [api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#requests).
-- **Events** the site uses: `key` (pressing a key on the device selects it on the page),
-  `config-changed` (someone else saved) and `usb-rebinding` (the device is about to re-plug).
-- **Browsers.** Only Chrome and Edge are supported. Browsers without WebHID (Firefox, Safari, phones)
-  get a warning that they can't connect, and can still open and save config files. Other
-  Chromium browsers with WebHID get a softer warning (`browserWarning` in `webhid.ts`).
-- **The PC helper** sends the device a heartbeat, and the device reports it through the `host`
-  command. The site asks every 5 s (nothing announces a change) and uses the answer only for hints,
-  such as "The PC helper isn't running".
-- **The clock.** The device has no battery-backed clock, so the site sends it the time on
-  connecting and every hour, as the PC helper does. It ignores a device that doesn't know the
-  command.
-- **Re-plugging.** Changing a USB setting makes the device drop off USB for a moment. The site waits
-  for it to come back and reconnects to the same device: a HID device only says its serial number
-  once it's opened, so another one plugged in meanwhile is opened, found out and passed over.
-- **Several devices.** The site edits one at a time. It remembers the serial number of the last one
-  (in this browser) and goes back to it on the next visit; **Use another device** opens the browser's
-  chooser, where they all look alike, so **Flash to identify** flashes the connected one's keys
-  white (an `identify` with no key).
-
-## Reading and saving
-
-The config is one JSON file, images and fonts included, up to 2 MiB. It moves in parts: 1 KiB
-per write, and per read 16 KiB (protocol 3) or 60 KiB (protocol 4).
-
-- **Protocol 3** devices answer in 64-byte reports: about 30 KB/s read and 50 KB/s write, so a
-  config full of GIFs takes half a minute.
-- **Protocol 4** devices answer in 1024-byte reports and move the config gzipped both ways
-  (`gzip.ts`, with the browser's `CompressionStream`). The site tells the two apart by the size of
-  each report, as [api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md)
-  describes, so it works with either.
-
-1. On connect the site reads the config and remembers its **rev** (its SHA-256).
-2. Edits change the config in memory only.
-3. **Save to device** first checks the config with the device's own rules (see below), then asks
-   the device for its current rev. If someone else saved in the meantime, the site asks whether to
-   replace their config or load it. Otherwise it writes the new config, based on the rev it read.
-4. The device checks the config again and refuses it, with a reason, if it changed meanwhile or
-   isn't valid. The site shows that reason as it is.
-5. Some saves wait for a press on the device: new key actions ([api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#the-config))
-   and a new USB network address ([api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#settings)). When the answer doesn't come at once,
-   the site says "Press Save on the device to confirm." (or "Press Change").
-
-After a re-plug the site compares revs and reads the config again only if it changed.
-
-## Layout
-
-```
-┌ Device Setup ─────────── Unsaved changes  Undo  [Save to device]  Open file  Save file  (● Connected) ┐
-├ Pages ──────┬ main › discord ─────────────────────┬ Key 6 / Page ──────────┤
-│ ⌂ main      │  ┌───────────────────────────────┐  │ preview                │
-│   browser   │  │         the device face       │  │ Look                   │
-│   discord   │  └───────────────────────────────┘  │ When pressed           │
-│ + Page      │  Pick a key to change it.           │                        │
-└─────────────┴─────────────────────────────────────┴────────────────────────┘
-```
-
-- **Header:** what applies to the whole config (Save to device, files) and the device (the status
-  pill opens its details and settings).
-- **Left, the page tree** (`PageTree`, from `src/lib/pages.ts`). The config keeps pages flat, so
-  the tree comes from which keys open which page, walking out from the home page. A page opened
-  from several places shows once, where it's found in the fewest presses. Keys that go back up, or
-  loop, add nothing. Pages no key opens are listed under "Not opened by any key".
-- **Middle, the device face**, with a breadcrumb (home › folder › page) above it.
-- **Right, one panel:** the selected key (`KeyEditor`), or with no key selected, the page
-  (`PagePanel`): its name, the keys that open it, "Show at start" and "Delete page". Escape or a
-  click on the device's body goes back to the page.
-- **Narrower windows:** under 1100 px the tree moves into a menu on the breadcrumb; under 760 px
-  it's one column, the face stays in view while the panel scrolls, and the file buttons go in a
-  `⋯` menu.
-
-## Editing
-
-- The config is edited in place, as the JSON objects it was read as.
-- A cleared field is removed rather than left empty, so the saved file stays as small and readable
-  as one written by hand.
-- "Unsaved changes" means the config's JSON differs from the one last read or saved.
-- Renaming a page renames the keys that open it. Deleting a page clears them.
-- "New page…" in a key's page list makes the page with a Back key already on it, so it can be left
-  on the device, and points the key at it.
-- Double-clicking a key that opens a page, goes back or goes home does that on the page, as
-  pressing it on the device would.
-- Key combos can be typed (`ctrl + shift + m`) or recorded by pressing them.
-- **Moving keys:** dragging a key onto another swaps the two; with Alt (Option) or Ctrl held, it
-  copies the key instead. Ctrl+C, Ctrl+X and Ctrl+V (Cmd on a Mac) copy, cut and paste the selected
-  key, across pages too; an empty key also offers **Paste**. Replacing a key asks first.
-- **Files:** **Open file** and **Save file** read and write `config.json`, for backups and for
-  editing without a device. A file opened while connected counts as unsaved until saved to the device.
-
-## Icons, emoji and pictures
-
-The device keeps no icon catalog: a config carries the icons its keys show, in `icons` (d200-deck's
-[config.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/config.md)). The catalog
-(Material Symbols and a few of d200-deck's own) lives in the site, through d200-deck's `icons`
-package.
-
-- **Picking** an icon only sets the key's `icon` name.
-- **Saving** (to the device or a file) runs `icons.Embed`: it copies in the catalog icons the keys
-  use, including the built-in looks of app keys (Discord, OBS, media players), and drops the ones no key uses. A name that's in neither
-  the config nor the catalog stops the save, with its name.
-- **Previews** embed into a copy of the config before drawing, so they match the device.
-  One exception: a **Now playing** key with no look of its own is blank on the device until the PC
-  helper sends a song, so the preview shows a dim "Now playing" instead.
-- **Emoji:** the device has no emoji font, so a picked emoji is drawn here, with the computer's own
-  emoji font, into a 120 px PNG (about 7–15 KB) and kept as an icon named `emoji-<code points>`,
-  e.g. `emoji-1f3ae`. It's drawn at icon size, like other icons. Each emoji is kept once however
-  many keys use it, and dropped when none does. The names and search words come from
-  [emojibase](https://emojibase.dev/) (MIT), loaded only when the emoji picker opens.
-- **Pictures** from files (PNG, JPEG, GIF, or anything else the browser reads, turned into PNG
-  first) go in as a key's `image`, which fills the key, or as a picture icon (`pic-<file name>`),
-  drawn at icon size beside a label. Animated GIFs move, on the device and in the previews.
-
-### Fitting pictures
-
-The device's limits are tight (an image 256 KiB, a picture icon 24 KiB and 128 px), so a picture
-is fitted when it's added, by `wasm/fit` in the browser. A picture that already fits is kept as it
-is; otherwise:
-
-1. It's scaled down to where it's drawn: the key it's on (196 px, or the wide key), or 120 px for
-   an icon. Never up: the device does that when drawing.
-2. An animated GIF keeps every nth frame (their times added up) until it's within 100 frames and
-   the 2 M frame pixels the device animates, counted at the size it's drawn. Past that budget the
-   device shows a GIF's first frame, which a GIF that passes the config check alone can hit.
-3. It's encoded within the byte limit: PNG, then JPEG for opaque stills; a GIF with one palette
-   and only the pixels that change in each frame. If it's still too big, a GIF loses more frames
-   (down to 12), then everything shrinks by 15% and tries again.
-
-The page says what changed ("Made smaller to fit: 120×120, 24 of 48 frames"). Each page has its
-own animation budget on the device, and in the previews (`newPage`), so the page warns when the GIFs
-on the page shown add up to more. Saving drops images no key shows, as it does icons.
-
-## Fonts
-
-The device draws labels in its Go fonts, or in fonts the config carries (512 KiB each, within the
-config's 2 MiB). The font list offers three groups: the device's own, the config's, and more.
-
-- **More fonts** is a catalog of about 20 open fonts (`src/lib/fontcatalog.json`), one weight per
-  file, from Google Fonts. `make fonts` downloads them and their licenses into `public/fonts/`,
-  kept in git, so the site serves them itself; a font loads only when it's picked.
-- **Cut down to the labels.** A catalog font goes into the config with only the characters its
-  labels use (`subsetFont`, d200-deck's `fonts.Subset`): a few KB instead of hundreds. As labels
-  gain characters, it's cut again from the whole font (`growFonts`), and saving cuts it to exactly
-  what's used. A config read back from the device can do the same, since its catalog fonts are
-  found by ID (`inter-bold`).
-- **From a file:** TrueType or OpenType, and WOFF, which is unpacked first. A font that fits goes
-  in whole. A bigger one is cut down like a catalog font, if it's TrueType, and kept whole only
-  while the page is open: after a reload, new characters show as boxes, and the page says so.
-  WOFF2 and font collections are refused, as are fonts the device can't read (`checkFont`).
-- Saving drops fonts no label uses, as it does images.
-- The catalog leaves out fonts with a Reserved Font Name in their license (Press Start 2P, Orbitron,
-  Lobster, IBM Plex and others): a cut-down copy counts as a modified font, which may not use the
-  name.
-
-## The device code in the browser
-
-`wasm/main.go` builds d200-deck's `deck` and `render` packages to WebAssembly. It gives the page:
+`wasm/main.go` gives the page d200-deck's code:
 
 | Function | From | Used for |
 |---|---|---|
-| `validate` | `deck.ParseStrict` | Checking a config before saving or opening it, unknown fields too |
-| `renderKey`, `setAssets` | `render.Renderer`, `icons.Embed` | Key previews, pixel for pixel as on the device; animated GIFs redraw when `Renderer.Next` says |
-| `fitImage`, `imageInfo` | `wasm/fit`, `deck.ImageSize` | Fitting pictures as they're added (above) |
-| `layout` | `render.Key`, `render.Width/Height` | Where the keys sit on the face |
+| `validate` | `deck.ParseStrict` | Checking a config before saving or opening it |
+| `renderKey`, `setAssets` | `render.Renderer`, `icons.Embed` | Key previews, as the device draws them |
+| `embed` | `icons.Embed` | Copying the icons keys use into the config |
+| `features` | `deck.Features` | What the site supports |
+| `fitImage`, `imageInfo` | `wasm/fit`, `deck.ImageSize` | Fitting pictures as they're added |
+| `layout` | `render.Key` | Where the keys sit on the face |
 | `iconNames`, `iconPath` | `icons.Names`, `icons.Get` | The icon picker |
-| `embed` | `icons.Embed` | Copying the icons keys use into the config before saving |
-| `features` | `deck.Features` | What the site supports: names, fields, apps and limits |
-| `missingGlyphs`, `fontLacks` | `render.MissingGlyphs`, `sfnt` | A warning under a label with characters its font lacks (they show as boxes) |
-| `subsetFont`, `checkFont` | `fonts.Subset`, `deck.CheckFont` | Fonts cut down to their labels, and fonts from files |
-| `newPage` | `render.NewPage` | Each page's own animation budget, as on the device |
+| `missingGlyphs`, `fontLacks` | `render.MissingGlyphs` | Warning about characters a font lacks |
+| `subsetFont`, `checkFont` | `fonts.Subset`, `deck.CheckFont` | Fonts cut down to their labels; fonts from files |
+| `newPage` | `render.NewPage` | Each page's own animation budget |
+| `builtinFallback` | `Action.FallbackAction` | What an app key does without the PC helper |
 | `defaultConfig` | `deck.DefaultConfig` | The fake device |
 
-The alternative, rewriting these in TypeScript, would drift from the device over time. The cost is
-download size: about 5.6 MB, 2.1 MB compressed, cached by the browser after the first visit.
+It's built with TinyGo, so:
 
-It's built with TinyGo rather than Go, which makes it about a third smaller (Go's build is 10.6 MB,
-3.3 MB compressed) and draws keys faster. Two things come with that:
+- the build uses Go's older JSON code (`GOEXPERIMENT=nojsonv2`);
+- an `int` is 32 bits: times in milliseconds go through `float64` or `int64`.
 
-- TinyGo can't run Go's newer JSON code yet, so the build uses the older one (`GOEXPERIMENT=nojsonv2`).
-- An `int` is 32 bits, so times in milliseconds go through `float64` or `int64`.
+## Talking to the device
 
-d200-deck builds its shared packages with TinyGo too, so a change there that TinyGo can't build is
-caught before the site picks it up. To go back to Go, build `wasm/` with `GOOS=js GOARCH=wasm go
-build` and copy Go's own `wasm_exec.js`.
+- `Conn` sends one request at a time and waits up to 2 s for each reply
+  ([api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#requests)).
+- Protocols 3 and 4, told apart by report size; 4 moves configs gzipped. Below 3 or above 4, the
+  site says to update the device or reload the page.
+- Events: `key` selects that key on the page, `config-changed` offers to load the new config,
+  `usb-rebinding` waits for the device to re-plug and reconnects to the same serial number.
+- The site sends the time on connecting and every hour, and asks every 5 s whether the PC helper
+  runs.
+- Settings show only when the device reports them. Brightness is sent at most 10 times a second
+  while the slider moves, and always the last value.
 
-Keys redraw when their button changes. Images and fonts are handed to the drawing code only when
-they change, since a config can hold megabytes of them.
+## Saving
+
+1. On connect the site reads the config and keeps its rev (SHA-256).
+2. Save checks that the device supports what the config uses, then runs `validate`.
+3. If the device's rev changed meanwhile, the site asks whether to replace that config or load it.
+4. The device checks again and may refuse with a reason; the site shows it as it is.
+5. New key actions and a new USB address wait for a press on the device; the site says so.
+
+Saving (to the device or a file) also embeds the catalog icons the keys use and drops icons,
+images and fonts no key uses.
+
+## Older and newer devices
+
+hello's `features` ([api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md#features))
+lists what the device's software supports. The site offers what's in both that and its own list
+(`deck.features`):
+
+| Part | Offered |
+|---|---|
+| Action types; key, media key, system and font names; fields such as `button.on` | In both lists |
+| App actions and their settings | The device's list, or all for an app it doesn't know; while the PC helper is connected, only what it runs |
+| Limits | The smaller of the two |
+
+A device without `features` counts as supporting the site's list. A value already in the config
+always shows. Before saving, `unsupportedMessage` refuses a config that uses what the device lacks.
+Gate a new option in the editor on its field or name.
+
+## Pictures and fonts
+
+- **Pictures** are fitted when added (`wasm/fit`): scaled to where they're drawn, animated GIFs
+  thinned to the device's frame budget, then encoded within the byte limit.
+- **Emoji** are drawn with the computer's emoji font into a PNG icon named `emoji-<code points>`.
+- **Catalog fonts** (`src/lib/fontcatalog.json`) are downloaded by `make fonts` into
+  `public/fonts/`, kept in git. A font goes into the config cut down to the characters its labels
+  use, and grows from the catalog as labels change. Leave out fonts whose license has a Reserved
+  Font Name: a cut-down copy may not use the name.
+- **Fonts from files:** TrueType, OpenType or WOFF. One over the size limit is cut down (TrueType
+  only) and kept whole only until the page closes.
 
 ## Device models
 
-`src/lib/models.ts` lists the kinds of device the site knows. A model has:
+`src/lib/models.ts` has one entry per kind of device:
 
 | Field | Is |
 |---|---|
-| `id` | What the device reports as `model` in `hello`, e.g. `ulanzi,d200` |
-| `windows` | Where each key's picture shows on the screen, in screen pixels, numbered as in the config |
-| `cap` | How far a key cap reaches past its picture, and its corner radius |
-| `body` | How far the body reaches past the outer key caps on each side, and its corner radius |
+| `id` | The `model` the device reports in hello, e.g. `ulanzi,d200` |
+| `windows` | Each key's picture on the screen, in screen pixels |
+| `cap`, `body` | How far key caps and the body reach past the pictures, and their corner radii |
 
-`face()` turns a model into the face the page draws: the grey body, a black cap per key, and the
-key's picture inside it. Everything is in screen pixels, so pictures, caps and body line up, and
-the face scales with the page.
-
-The site picks a model by the `model` the device reports, then by its number of keys, then the
-first in the list (also used with no device). A test checks the D200's windows against d200-deck's
-`render.Key`, so the two can't drift. Adding a device means adding its entry here, and its drawing
+The site picks a model by `model`, then by number of keys, then the first. A test checks the
+D200's windows against d200-deck's `render.Key`. A new device needs an entry here and its drawing
 code in d200-deck.
-
-The page says "device", not "D200", so a new model needs no wording changes.
 
 ## Look
 
-- One accent colour, for selection and the main action. Dark and light follow the system. The
-  accent, text and error colours are the device's update page's (`internal/deckupdate/style.css`
-  in d200-deck), so change both together.
-- The page uses the Go fonts, the same family the device draws key labels in. They come from the
-  Go module the WebAssembly part is built from.
-- The device face is the one detailed element; the rest stays flat and quiet.
-
-## Not done yet
-
-- WOFF2 font files (convert them to TTF first).
+The accent, text and error colours match the device's update page
+(`internal/deckupdate/style.css` in d200-deck); change both together. The page uses the Go fonts,
+as the device does. Dark and light follow the system.

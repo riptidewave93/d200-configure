@@ -2,77 +2,35 @@
 
 ## What you need
 
-- Docker, `make` and `git`. Node, Go and TinyGo run in containers, the same locally and in CI.
-- [d200-deck](https://github.com/riptidewave93/d200-deck) checked out next to this repo, at
-  `../d200-deck`. Part of the site is built from its Go code (see [design.md](design.md#the-device-code-in-the-browser)).
-  Use `DECK_DIR=<path>` to point elsewhere.
-
-```
-Repos/
-  d200-configure/   this repo
-  d200-deck/        the device software
-```
+- Docker, `make` and `git`. Node, Go and TinyGo run in containers.
+- [d200-deck](https://github.com/riptidewave93/d200-deck) checked out at `../d200-deck`, or set
+  `DECK_DIR=<path>`. The WebAssembly part is built from it.
 
 ## Commands
 
 | Command | Does |
 |---|---|
 | `make` | `check`, `test` and `build` |
-| `make dev` | Dev server at http://localhost:5173/d200-configure/, reloads on save |
-| `make check` | Type checks (TypeScript and Svelte) |
-| `make test` | Unit tests: the site's, and the Go ones in `wasm/fit` |
+| `make dev` | Dev server at http://localhost:5173/d200-configure/ |
+| `make check` | Type checks |
+| `make test` | Unit tests |
 | `make build` | The site, into `dist/` |
-| `make wasm` | Just the WebAssembly part (built with TinyGo) and the Go fonts, into `src/wasm/` (the targets above run it) |
-| `make fonts` | Downloads the font catalog into `public/fonts/` again, after changing `src/lib/fontcatalog.json` |
+| `make fonts` | Downloads the font catalog into `public/fonts/`, after changing `src/lib/fontcatalog.json` |
 | `make clean` | Removes `dist/`, `node_modules/` and `.cache/` |
 
-`make <target> DOCKER=` uses the host's Node, Go and TinyGo instead of Docker.
+`make <target> DOCKER=` uses the host's Node, Go and TinyGo instead.
 
-## Without a device
+## Testing
 
-Open http://localhost:5173/d200-configure/?fake. The site connects to a device kept in memory
-(`src/lib/fakedevice.ts`), loaded with the device's default config and a running PC helper. Saves
-go to memory and are lost on reload. `?fake` works only on the dev server, not the published site.
-
-## With a device
-
-WebHID works on `localhost`, so `make dev` and Chrome are enough.
-
-- On Linux, install the udev rule first (see the [README](../README.md#using-it)).
-- The device needs a recent `deckd`; any current d200-buildroot image has one.
-- In Chrome, `chrome://device-log` shows WebHID errors; the page's console shows the site's.
-- `deckhost config get FILE` (in d200-deck) reads the same config over USB, to compare.
-
-## Code
-
-| Path | What |
-|---|---|
-| `src/App.svelte` | The page: connecting, saving, files |
-| `src/components/` | The editor's parts: page tree, breadcrumb, device face, key and page panels, action editor, device panel |
-| `src/lib/proto.ts` | The USB protocol's framing and constants (d200-deck `proto/raw.go`) |
-| `src/lib/conn.ts` | A connection: requests, replies, events, config read and write (`proto/client.go`, `proto/config.go`) |
-| `src/lib/gzip.ts` | Gzipping configs for protocol 4 devices |
-| `src/lib/webhid.ts` | Opening the device in the browser |
-| `src/lib/device.svelte.ts` | The connected device, reconnecting after it re-plugs |
-| `src/lib/doc.svelte.ts` | The config being edited: pages, keys, unsaved changes |
-| `src/lib/pages.ts` | The pages as a tree, from the keys that open them |
-| `src/lib/deck.ts` | Loads the WebAssembly part |
-| `src/lib/draw.ts` | Draws keys with it |
-| `src/lib/models.ts` | The kinds of device: their keys and face |
-| `src/lib/emoji.ts` | Emoji: the list, search, and drawing them into PNGs |
-| `src/lib/pictures.ts` | Pictures from files: reading, naming, and the animation budget |
-| `src/lib/fonts.ts` | Fonts: the catalog, fonts from files, cutting them down to the labels |
-| `src/lib/fakedevice.ts` | The in-memory device, for tests and `?fake` |
-| `wasm/main.go` | The WebAssembly part: d200-deck's `deck`, `icons` and `render` packages for the browser |
-| `wasm/fit/` | Fitting pictures to the device's limits, GIFs included |
-
-Tests sit next to the code, as `*.test.ts` and `*_test.go`.
+- **Without a device:** open http://localhost:5173/d200-configure/?fake (dev server only). Saves go
+  to memory.
+- **With a device:** `make dev` and Chrome. On Linux, install the udev rule first
+  ([README](../README.md#using-it)). `chrome://device-log` shows WebHID errors.
 
 ## Updating d200-deck
 
-The site builds against `../d200-deck` locally, and against `DECK_VERSION` in the `Makefile` in CI.
-After a d200-deck change the site uses, push d200-deck, then set `DECK_VERSION` to its commit.
-To build against that pin locally, as CI does:
+Locally the site builds against `../d200-deck`; CI builds against `DECK_VERSION` in the `Makefile`.
+Push d200-deck first, then set `DECK_VERSION` to its commit. To build as CI does:
 
 ```bash
 make deck-source && make DECK_DIR=.cache/d200-deck
@@ -81,5 +39,4 @@ make deck-source && make DECK_DIR=.cache/d200-deck
 ## Publishing
 
 `.github/workflows/pages.yml` runs `make` on every push and pull request, and publishes `dist/` to
-GitHub Pages on pushes to `main`. Once, in the repo's **Settings > Pages**, set **Source** to
-**GitHub Actions**.
+GitHub Pages on pushes to `main`.
