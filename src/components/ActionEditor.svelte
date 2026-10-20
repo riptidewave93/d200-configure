@@ -3,14 +3,18 @@
   import type { Action } from "../lib/config";
   import {
     appNames,
+    argNames,
+    defaultSongCycle,
     describe,
     fallbackTypes,
     isPC,
     joinCommand,
+    maxSongCycle,
     opArgs,
     opName,
     splitCommand,
     stepTypes,
+    songShows,
     systemNames,
     typeName,
     typeTextProblem,
@@ -83,6 +87,22 @@
       if (i > 0) h[line.slice(0, i).trim()] = line.slice(i + 1).trim();
     }
     return h;
+  }
+
+  // a new op keeps only the args it reads
+  function setOp(op: string) {
+    action.op = op;
+    const keep = argNames(action.app, op);
+    const a = Object.fromEntries(Object.entries(action.args ?? {}).filter(([k]) => keep.includes(k)));
+    set(action, "args", a);
+  }
+
+  function setShow(v: string) {
+    const a = { ...(action.args ?? {}) };
+    if (v === "art") delete a.show;
+    else a.show = v;
+    if (v !== "both") delete a.cycle;
+    set(action, "args", a);
   }
 
   function setArg(name: string, v: string, number = false) {
@@ -252,7 +272,7 @@
     <select value={action.app} onchange={(e) => setApp(e.currentTarget.value)} aria-label="App">
       {#each Object.keys(apps) as a (a)}<option value={a}>{appNames[a] ?? a}</option>{/each}
     </select>
-    <select class="grow" bind:value={action.op} aria-label="App action">
+    <select class="grow" value={action.op} onchange={(e) => setOp(e.currentTarget.value)} aria-label="App action">
       {#each apps[action.app ?? ""] ?? [] as op (op)}<option value={op}>{opName(action.app, op)}</option>{/each}
     </select>
   </div>
@@ -267,7 +287,26 @@
     </label>
   {/each}
   {#if action.app === "media" && action.op === "now-playing"}
-    <p class="muted small">The key shows the song playing on the PC: its album art, or its title and artist.</p>
+    <label>
+      <span>Shows</span>
+      <select value={action.args?.show ?? "art"} onchange={(e) => setShow(e.currentTarget.value)}>
+        {#each Object.entries(songShows) as [v, name] (v)}<option value={v}>{name}</option>{/each}
+      </select>
+    </label>
+    {#if action.args?.show === "both"}
+      <label>
+        <span>Seconds each</span>
+        <input
+          type="number"
+          min="1"
+          max={maxSongCycle}
+          placeholder={String(defaultSongCycle)}
+          value={action.args?.cycle ?? ""}
+          onchange={(e) => setArg("cycle", e.currentTarget.value, true)}
+        />
+      </label>
+    {/if}
+    <p class="muted small">The device draws the song playing on the PC on this key.</p>
   {/if}
 {/if}
 

@@ -112,6 +112,22 @@ export function typeTextProblem(text = ""): string {
 
 const player = { name: "id", label: "Player (empty for the one playing)" };
 
+// What a now-playing key shows (d200-deck docs/media.md); "both" takes turns,
+// args.cycle seconds each.
+export const songShows: Record<string, string> = {
+  art: "Album art, or the title if there's none",
+  text: "Title and artist",
+  both: "Both, taking turns",
+};
+export const defaultSongCycle = 3;
+export const maxSongCycle = 60;
+
+// argNames are the args an app op reads.
+export function argNames(app = "", op = ""): string[] {
+  const names = (opArgs[`${app}.${op}`] ?? []).map((a) => a.name);
+  return app === "media" && op === "now-playing" ? [...names, "show", "cycle"] : names;
+}
+
 // Ops that take args, and which.
 export const opArgs: Record<string, { name: string; label: string; number?: boolean }[]> = {
   "discord.channel": [

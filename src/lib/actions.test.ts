@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describe as describeAction, joinCommand, splitCommand, typeTextProblem } from "./actions";
+import { argNames, describe as describeAction, joinCommand, splitCommand, typeTextProblem } from "./actions";
 
 describe("commands", () => {
   it("splits on spaces, keeping quoted ones", () => {
@@ -23,5 +23,13 @@ describe("words for actions", () => {
     expect(typeTextProblem("brb\n")).toBe("");
     expect(typeTextProblem("café ✓")).toBe("It can't type é ✓: only plain letters, digits and symbols (ASCII).");
     expect(typeTextProblem("x".repeat(1025))).toBe("Up to 1024 characters.");
+  });
+});
+
+describe("now playing", () => {
+  it("reads a player, what to show and how long", () => {
+    expect(argNames("media", "now-playing")).toEqual(["id", "show", "cycle"]);
+    expect(argNames("media", "next")).toEqual(["id"]);
+    expect(argNames("discord", "mute")).toEqual([]);
   });
 });
