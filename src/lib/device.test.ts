@@ -129,7 +129,7 @@ describe("device", () => {
     const far = d.setOffset({ x: 99, y: -99 });
     await vi.advanceTimersByTimeAsync(200);
     await far;
-    expect(d.settings?.screen_offset).toEqual({ x: 20, y: -20 });
+    expect(d.settings?.screen_offset).toEqual({ x: 31, y: -3 });
     await d.disconnect();
   });
 
@@ -157,6 +157,41 @@ describe("device", () => {
     await d.disconnect();
     await wait(60_000);
     expect(fake.settingsChanges).toHaveLength(5);
+  });
+
+  it("resets a device once it's confirmed there, then waits for its restart", async () => {
+    const fake = new FakeDevice();
+    fake.ask = { delay: 1500, yes: true };
+    const d = new Device();
+    await d.open(fake);
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const done = d.reset();
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(d.asking).toBe("Erase");
+    await vi.advanceTimersByTimeAsync(1000);
+    await done;
+    expect([fake.resets, d.asking, d.state]).toEqual([1, "", "reconnecting"]);
+    // not back after 90 s: stop waiting, and say so
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(d.state).toBe("none");
+    expect(d.error).toBe("The device didn't come back after restarting. Plug it in again, then connect.");
+  });
+
+  it("leaves the device as it was when the reset isn't confirmed, or it can't reset", async () => {
+    const fake = new FakeDevice();
+    fake.ask = { delay: 0, yes: false };
+    const d = new Device();
+    await d.open(fake);
+    await expect(d.reset()).rejects.toThrow("cancelled on the device");
+    expect([fake.resets, d.state]).toEqual([0, "ready"]);
+    await d.disconnect();
+
+    const old = new FakeDevice();
+    old.unknown.add(Cmd.Reset);
+    await d.open(old);
+    await expect(d.reset()).rejects.toThrow();
+    expect([old.resets, d.state]).toEqual([0, "ready"]);
+    await d.disconnect();
   });
 
   it("says when a device's software is newer than the site", async () => {

@@ -72,6 +72,8 @@ It's built with TinyGo, so:
   runs.
 - Settings show only when the device reports them. Brightness is sent at most 10 times a second
   while the slider moves, and always the last value.
+- Reset device (`commands` has `"reset"`) waits for a press on the device, which then restarts
+  without an event: the site goes back to the start screen and waits up to 90 s to reconnect.
 - While Align screen is open the site sends `screen_pattern` again every 20 s (the device ends it
   a minute after the last change), and ends it on Done, on closing the panel and when the page
   closes.

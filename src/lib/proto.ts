@@ -34,6 +34,7 @@ export const Cmd = {
   Host: 0x0d,
   // sets the device's clock: it has no battery-backed one
   Time: 0x0e,
+  Reset: 0x11, // erases the keys and settings, then restarts; asked on the device
 } as const;
 
 // How often clients send the time.

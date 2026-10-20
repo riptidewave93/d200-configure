@@ -48,8 +48,8 @@ export class FakeDevice implements Transport {
     brightness_min: 10,
     sleep_screen: "zzz",
     screen_offset: { x: 0, y: 0 },
-    screen_offset_min: { x: -20, y: -20 },
-    screen_offset_max: { x: 20, y: 20 },
+    screen_offset_min: { x: -18, y: -3 },
+    screen_offset_max: { x: 31, y: 2 },
     screen_pattern: false,
   };
   settingsChanges: Settings[] = [];
@@ -68,6 +68,9 @@ export class FakeDevice implements Transport {
   // set to ask on the "screen" before a commit or a new USB address: the
   // answer comes after delay ms
   ask: { delay: number; yes: boolean } | null = null;
+  // called after a reset, as the device restarts
+  onRestart: (() => void) | null = null;
+  resets = 0;
   private upload: { base: string; size: number; sha256: string; gzip_size?: number; b: number[] } | null = null;
   private gz: { rev: string; data: Uint8Array } | null = null;
 
@@ -82,8 +85,8 @@ export class FakeDevice implements Transport {
     return this.gz.data;
   }
 
-  constructor(config: unknown = { version: 1, home: "main", pages: { main: { keys: {} } } }) {
-    this.config = json(config);
+  constructor(private initial: unknown = { version: 1, home: "main", pages: { main: { keys: {} } } }) {
+    this.config = json(initial);
   }
 
   async send(report: Uint8Array) {
@@ -159,6 +162,14 @@ export class FakeDevice implements Transport {
           };
         }
         return [Status.OK, json(s)];
+      }
+      case Cmd.Reset: {
+        const why = await this.asked();
+        if (why) return [Status.Failed, bytes(why)];
+        this.resets++;
+        this.config = json(this.initial);
+        setTimeout(() => this.onRestart?.(), 0);
+        return [Status.OK];
       }
       case Cmd.ConfigInfo: {
         const info = await this.info();

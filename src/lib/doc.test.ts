@@ -60,6 +60,14 @@ describe("Doc", () => {
     expect(onDevice.saved).toBe(before); // Discard goes back to the device's
   });
 
+  it("closes, back to no config", () => {
+    const d = new Doc();
+    d.load(config());
+    d.key = 3;
+    d.close();
+    expect([d.config, d.saved, d.key, d.dirty]).toEqual([null, "", null, false]);
+  });
+
   it("moves keys, swapping, and copies them", () => {
     const d = new Doc();
     d.load(config());

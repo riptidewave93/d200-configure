@@ -23,7 +23,8 @@
 ## Testing
 
 - **Without a device:** open http://localhost:5173/d200-configure/?fake (dev server only). Saves go
-  to memory. With `?fake=later` it connects when you choose Connect, e.g. in the middle of an edit.
+  to memory. With `?fake=later` it connects when you choose Connect, e.g. in the middle of an edit;
+  with `&ask` it asks on its "screen" for 4 s before a change it would ask about.
 - **With a device:** `make dev` and Chrome. On Linux, install the udev rule first
   ([README](../README.md#what-you-need)). `chrome://device-log` shows WebHID errors.
 

@@ -18,6 +18,7 @@ export interface Features {
   args: Record<string, string[]>; // args by app
   limits: Record<string, number>;
   settings?: string[]; // the device settings it takes; older software doesn't say
+  commands?: string[]; // requests beyond the first release's, e.g. "reset"
 }
 
 const both = (a: string[], b: string[]) => a.filter((x) => b.includes(x));
@@ -61,6 +62,10 @@ export function forDevice(site: Features, device?: Features | null): Features {
 export function older(site: Features): Features {
   return { ...site, limits: Object.fromEntries(Object.entries(site.limits).filter(([k]) => !newWays.includes(k))) };
 }
+
+// hasCommand says whether the device takes a request newer than the first
+// release, e.g. "reset".
+export const hasCommand = (device: Features | null | undefined, name: string) => !!device?.commands?.includes(name);
 
 // runnable cuts app ops to those the PC helper runs, while it's connected.
 export function runnable(f: Features, host?: HostInfo | null): Features {

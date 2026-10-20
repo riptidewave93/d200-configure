@@ -248,6 +248,8 @@
         const fake = new FakeDevice(d.defaultConfig());
         fake.hello.features = d.features; // as new as the site
         fake.host = { connected: true, name: "deckhost", version: "dev", apps: [{ name: "discord", title: "Discord" }] };
+        fake.onRestart = () => setTimeout(() => device.open(fake), 3000); // as if it came back
+        if (new URLSearchParams(location.search).has("ask")) fake.ask = { delay: 4000, yes: true }; // ?fake&ask
         if (fakeParam === "later") connectFake = () => device.open(fake);
         else device.open(fake);
       });
@@ -337,7 +339,7 @@
     {/if}
     {#if showDevice && connected}
       <div class="popover device" role="dialog" aria-label="Device">
-        <DevicePanel />
+        <DevicePanel onreset={() => (showDevice = false)} />
         <div class="row">
           <button class="quiet small" onclick={() => device.disconnect()}>Disconnect</button>
           <button class="quiet small" onclick={() => ((showDevice = false), device.choose())}>Use another device</button>
@@ -392,6 +394,8 @@
       {#if device.progress}
         <p class="muted">{working}…</p>
         <progress max={device.progress.total || 1} value={device.progress.done}></progress>
+      {:else if device.state === "reconnecting"}
+        <p class="muted" role="status">The device is restarting…</p>
       {:else if supported()}
         <p class="muted">Plug it into this computer, then connect.</p>
         <div class="row center">

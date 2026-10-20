@@ -32,6 +32,8 @@ const hostPoll = 5000;
 
 // At most 10 changes a second while a slider moves or a button is pressed.
 const changeGap = 100;
+// A device restarting after a reset is back in about 35 s.
+const restartWait = 90_000;
 // The alignment pattern ends by itself a minute after the last change, so
 // it's sent again while it shows.
 const patternRefresh = 20_000;
@@ -334,6 +336,25 @@ export class Device {
 
   async identify(key: number) {
     await this.connected().identify(key);
+  }
+
+  // reset erases the device's keys and settings, once confirmed on it; it
+  // then restarts, and is reconnected when it's back.
+  async reset() {
+    try {
+      await this.connected().reset(() => (this.asking = "Erase"));
+    } finally {
+      this.asking = "";
+    }
+    clearInterval(this.poll);
+    clearInterval(this.clock);
+    clearInterval(this.pattern);
+    this.state = "reconnecting";
+    setTimeout(() => {
+      if (this.state !== "reconnecting") return;
+      this.disconnect();
+      this.error = "The device didn't come back after restarting. Plug it in again, then connect.";
+    }, restartWait);
   }
 
   // flash flashes the whole screen, to tell devices apart.

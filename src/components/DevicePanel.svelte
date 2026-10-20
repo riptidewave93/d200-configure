@@ -4,8 +4,11 @@
   import { onDestroy } from "svelte";
   import { canAlign, nudge, offsetWords } from "../lib/align";
   import { message } from "../lib/device.svelte";
+  import { hasCommand } from "../lib/features";
 
-  const { device } = app();
+  // onreset: the device was erased and is restarting
+  let { onreset }: { onreset?: () => void } = $props();
+  const { device, doc } = app();
   const installURL = "https://github.com/riptidewave93/d200-deck/blob/main/docs/install.md";
 
   let error = $state("");
@@ -69,6 +72,28 @@
   onDestroy(() => {
     if (aligning) device.showPattern(false).catch(() => {});
   });
+
+  // Reset device: erases its keys and settings, asked on the device too
+  let canReset = $derived(hasCommand(device.hello?.features, "reset"));
+  async function reset() {
+    const lost = doc.dirty ? "\n\nYour unsaved changes here are lost too. Save a file first to keep them." : "";
+    const ok = confirm(
+      "Erase everything on the device?\n\n" +
+        "Its keys and all its settings go: brightness, sleep screen, screen alignment, the USB drive and network, " +
+        "and which computer it's used with. Its software stays.\n\n" +
+        "The device then restarts, which takes about half a minute." +
+        lost,
+    );
+    if (!ok) return;
+    error = "";
+    try {
+      await device.reset();
+      doc.close();
+      onreset?.();
+    } catch (err) {
+      error = message(err);
+    }
+  }
 
   let flashed = $state(false);
   async function flash() {
@@ -209,6 +234,16 @@
   {#if device.pageURL("/")}
     <p class="small debug"><a href={device.pageURL("/debug")} target="_blank" rel="noreferrer">Debug info</a></p>
   {/if}
+
+  {#if canReset}
+    <div class="reset">
+      {#if device.asking === "Erase"}
+        <p class="small" role="status">Press <strong>Erase</strong> on the device to confirm.</p>
+      {:else}
+        <button class="plain danger" onclick={reset}>Reset device…</button>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -241,6 +276,18 @@
   }
   .debug {
     margin: 12px 0 0;
+  }
+  .reset {
+    border-top: 1px solid var(--line);
+    margin-top: 12px;
+    padding-top: 8px;
+  }
+  .reset p {
+    margin: 4px 0;
+  }
+  .danger {
+    color: var(--bad);
+    margin-left: -6px;
   }
   .align-open {
     display: flex;

@@ -50,6 +50,13 @@ export class Doc {
     this.saved = onDevice;
   }
 
+  // close leaves the config, e.g. after the device's was erased.
+  close() {
+    this.config = null;
+    this.saved = "";
+    this.key = null;
+  }
+
   markSaved() {
     this.saved = JSON.stringify(this.config);
   }

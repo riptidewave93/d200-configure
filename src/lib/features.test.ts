@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Config } from "./config";
-import { forDevice, newer, older, runnable, unsupported, unsupportedMessage, type Features } from "./features";
+import { forDevice, hasCommand, newer, older, runnable, unsupported, unsupportedMessage, type Features } from "./features";
 
 const site: Features = {
   actions: ["app", "hid-key", "macro", "page"],
@@ -54,6 +54,12 @@ describe("features", () => {
     expect(f.limits.anim_bytes).toBeUndefined();
     expect({ ...f, limits: {} }).toEqual({ ...s, limits: {} });
     expect(f.limits.label).toBe(32);
+  });
+
+  it("knows the requests a device takes beyond the first release's", () => {
+    expect(hasCommand({ ...site, commands: ["reset"] }, "reset")).toBe(true);
+    expect(hasCommand(old, "reset")).toBe(false); // older software: no list
+    expect(hasCommand(null, "reset")).toBe(false);
   });
 
   it("offers what the site supports with no device", () => {

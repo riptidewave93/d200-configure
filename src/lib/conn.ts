@@ -203,6 +203,12 @@ export class Conn {
     await this.request(Cmd.Identify);
   }
 
+  // reset erases the device's keys and settings once confirmed on the
+  // device, which then restarts.
+  async reset(asking?: Asking) {
+    await this.askable(Cmd.Reset, undefined, asking);
+  }
+
   configInfo(gzip = false) {
     return this.requestJSON<ConfigInfo>(Cmd.ConfigInfo, gzip ? { gzip: true } : undefined);
   }
