@@ -6,6 +6,7 @@ import type { Deck, Pixels } from "./deck";
 import type { Doc } from "./doc.svelte";
 
 let assets = "";
+let page = "";
 
 // assetsKey changes when what keys are drawn from does: the icons keys
 // name (their own, their on looks, and app looks), the config's icons,
@@ -30,6 +31,10 @@ export function drawKey(deck: Deck, doc: Doc, key: number, b: Button, on = false
   if (k !== assets && doc.config) {
     deck.setAssets(doc.config);
     assets = k;
+  }
+  if (doc.page !== page) {
+    deck.newPage();
+    page = doc.page;
   }
   return deck.renderKey(key, b, on);
 }

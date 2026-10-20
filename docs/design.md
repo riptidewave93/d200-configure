@@ -131,7 +131,7 @@ package.
 
 - **Picking** an icon only sets the key's `icon` name.
 - **Saving** (to the device or a file) runs `icons.Embed`: it copies in the catalog icons the keys
-  use, including Discord's built-in looks, and drops the ones no key uses. A name that's in neither
+  use, including the built-in looks of app keys (Discord, OBS, media players), and drops the ones no key uses. A name that's in neither
   the config nor the catalog stops the save, with its name.
 - **Previews** embed into a copy of the config before drawing, so they match the device.
 - **Emoji:** the device has no emoji font, so a picked emoji is drawn here, with the computer's own
@@ -158,9 +158,9 @@ is; otherwise:
    and only the pixels that change in each frame. If it's still too big, a GIF loses more frames
    (down to 12), then everything shrinks by 15% and tries again.
 
-The page says what changed ("Made smaller to fit: 120×120, 24 of 48 frames"). The device's
-animation budget covers every GIF it has shown since the config loaded, so the page warns when
-the whole config's GIFs add up to more. Saving drops images no key shows, as it does icons.
+The page says what changed ("Made smaller to fit: 120×120, 24 of 48 frames"). Each page has its
+own animation budget on the device, and in the previews (`newPage`), so the page warns when the GIFs
+on the page shown add up to more. Saving drops images no key shows, as it does icons.
 
 ## The device code in the browser
 
@@ -174,7 +174,9 @@ the whole config's GIFs add up to more. Saving drops images no key shows, as it 
 | `layout` | `render.Key`, `render.Width/Height` | Where the keys sit on the face |
 | `iconNames`, `iconPath` | `icons.Names`, `icons.Get` | The icon picker |
 | `embed` | `icons.Embed` | Copying the icons keys use into the config before saving |
-| `names` | `deck.Keys`, `deck.UsageNames`, ... | Key names, media keys, fonts, app ops |
+| `names` | `deck.Keys`, `deck.UsageNames`, ... | Key names, media keys, fonts, apps and their ops |
+| `missingGlyphs` | `render.MissingGlyphs` | A warning under a label with characters its font lacks (they show as boxes) |
+| `newPage` | `render.NewPage` | Each page's own animation budget, as on the device |
 | `defaultConfig` | `deck.DefaultConfig` | The fake device |
 
 The alternative, rewriting these in TypeScript, would drift from the device over time. The cost is
@@ -217,5 +219,4 @@ The page says "device", not "D200", so a new model needs no wording changes.
 ## Not done yet
 
 - Adding custom fonts (they're kept and drawn if a config already has them).
-- A warning for label characters the device's fonts don't have (they show as boxes).
 - Moving or copying keys, e.g. by dragging.

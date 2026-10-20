@@ -20,6 +20,7 @@ import (
 	xdraw "golang.org/x/image/draw"
 
 	"github.com/riptidewave93/d200-deck/deck"
+	"github.com/riptidewave93/d200-deck/render"
 )
 
 // Box is the most a picture can be: its size on the device, and its bytes.
@@ -43,10 +44,10 @@ const minSide = 16
 // The fewest frames kept before shrinking an animation instead.
 const minFrames = 12
 
-// MaxAnimPixels is what the device animates at once, in frame pixels at the
-// size it draws them (d200-deck's render.maxAnimPixels); past it, a GIF
-// shows its first frame. A fitted GIF stays within it, so it moves.
-const MaxAnimPixels = 2 << 20
+// MaxAnimPixels is what the device animates on a page, in frame pixels at
+// the size it draws them; past it, a GIF shows its first frame. A fitted GIF
+// stays within it, so it moves.
+const MaxAnimPixels = render.MaxAnimPixels
 
 var errTooBig = errors.New("too detailed to fit, even made smaller")
 

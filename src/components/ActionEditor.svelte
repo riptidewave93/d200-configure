@@ -6,8 +6,9 @@
     fallbackTypes,
     isPC,
     joinCommand,
+    mediaNeedsHelper,
     opArgs,
-    opNames,
+    opName,
     splitCommand,
     stepTypes,
     systemNames,
@@ -48,6 +49,13 @@
     if (t === "delay") next.ms = 100;
     if (isPC(t) && action.fallback) next.fallback = action.fallback;
     action = next;
+  }
+
+  // another app: its first op, and none of the last one's args
+  function setApp(a: string) {
+    action.app = a;
+    action.op = apps[a]?.[0] ?? "";
+    delete action.args;
   }
 
   const headersText = (h: Record<string, string> = {}) =>
@@ -216,11 +224,11 @@
   </label>
 {:else if action.type === "app"}
   <div class="row">
-    <select bind:value={action.app} aria-label="App">
+    <select value={action.app} onchange={(e) => setApp(e.currentTarget.value)} aria-label="App">
       {#each Object.keys(apps) as a (a)}<option value={a}>{appNames[a] ?? a}</option>{/each}
     </select>
-    <select class="grow" bind:value={action.op} aria-label="Action">
-      {#each apps[action.app ?? ""] ?? [] as op (op)}<option value={op}>{opNames[op] ?? op}</option>{/each}
+    <select class="grow" bind:value={action.op} aria-label="App action">
+      {#each apps[action.app ?? ""] ?? [] as op (op)}<option value={op}>{opName(action.app, op)}</option>{/each}
     </select>
   </div>
   {#each args as a (a.name)}
@@ -236,7 +244,9 @@
 {/if}
 
 {#if isPC(action.type) && device.state === "ready"}
-  {#if !device.host?.connected}
+  {#if action.type === "app" && action.app === "media" && !mediaNeedsHelper.has(action.op ?? "")}
+    {#if !device.host?.connected}<p class="muted">Without the PC helper, it works as the plain media key.</p>{/if}
+  {:else if !device.host?.connected}
     <p class="muted">The PC helper isn't running, so this won't work yet.</p>
   {:else if action.type === "app" && !hostApp?.status}
     <p class="muted">{appNames[action.app ?? ""] ?? action.app} isn't set up in the PC helper yet.</p>

@@ -8,7 +8,7 @@ DOCKER ?= docker
 # checkout next to this one; in CI, DECK_VERSION fetched by make deck-source.
 DECK_DIR ?= ../d200-deck
 DECK_REPO := https://github.com/riptidewave93/d200-deck.git
-DECK_VERSION := 8cf67d955ffe679d64d83ce3f00cbb66a8b2ebd8
+DECK_VERSION := 6f19f59648999ad8a9a3b1f18c216456ac820437
 
 REPO_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 COMMA := ,

@@ -9,9 +9,8 @@ import type { Deck, Fitted } from "./deck";
 // The largest the device draws a picture icon (render: 120 px on the wide key).
 export const iconSide = 120;
 
-// What the device animates at once, in frame pixels at the size it draws
-// them (render.maxAnimPixels; fit.MaxAnimPixels); past it, a GIF shows its
-// first frame.
+// What the device animates on a page, in frame pixels at the size it draws
+// them (render.MaxAnimPixels); past it, a GIF shows its first frame.
 export const maxAnimPixels = 2 << 20;
 
 // Formats the device reads; others are turned into PNG here first.
@@ -80,10 +79,10 @@ export function usedImages(c: Config): Set<string> {
 
 const infos = new Map<string, { width: number; height: number; frames: number } | null>();
 
-// animatedPixels estimates the frame pixels the device keeps to animate the
-// config's GIFs, each scaled to where it's shown: images to their key,
+// animatedPixels estimates the frame pixels the device keeps to animate a
+// page's GIFs, each scaled to where it's shown: images to their key,
 // picture icons to icon size. One picture shown at one size counts once.
-export function animatedPixels(c: Config, deck: Deck): number {
+export function animatedPixels(c: Config, deck: Deck, page: string): number {
   const seen = new Map<string, number>();
   const count = (id: string, data: string | undefined, w: number, h: number) => {
     if (!data?.startsWith("R0lGOD")) return;
@@ -94,7 +93,7 @@ export function animatedPixels(c: Config, deck: Deck): number {
     const s = Math.min(w / i.width, h / i.height);
     seen.set(`${id}@${w}x${h}`, i.frames * Math.round(i.width * s) * Math.round(i.height * s));
   };
-  for (const p of Object.values(c.pages)) {
+  for (const p of [c.pages[page]].filter(Boolean)) {
     for (const [n, b] of Object.entries(p.keys)) {
       const k = deck.layout.keys[+n];
       if (!k) continue;

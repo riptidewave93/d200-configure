@@ -68,10 +68,17 @@ describe("pictures", () => {
     const data = gif.toString("base64");
     const keys = Object.fromEntries([0, 1, 2].map((k) => [String(k), { image: "bars", action: {} }]));
     const c: Config = { version: 1, home: "main", pages: { main: { keys } }, images: { bars: data } };
-    expect(animatedPixels(c, d)).toBe(4 * 196 * 196); // three keys, one size
+    expect(animatedPixels(c, d, "main")).toBe(4 * 196 * 196); // three keys, one size
     c.pages.main.keys["13"] = { image: "bars", action: {} }; // the wide key: another size
-    expect(animatedPixels(c, d)).toBeGreaterThan(4 * 196 * 196);
-    expect(animatedPixels(c, d)).toBeLessThan(maxAnimPixels);
+    expect(animatedPixels(c, d, "main")).toBeGreaterThan(4 * 196 * 196);
+    expect(animatedPixels(c, d, "main")).toBeLessThan(maxAnimPixels);
+    expect(animatedPixels(c, d, "other")).toBe(0);
+  });
+
+  it("finds label characters the device can't draw", async () => {
+    const d = await deck();
+    expect(d.missingGlyphs({ label: "Mute" })).toBe("");
+    expect(d.missingGlyphs({ label: "Done ✓" })).toBe("✓");
   });
 
   it("previews say when an animation's next frame is due", async () => {

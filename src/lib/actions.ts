@@ -47,29 +47,51 @@ export const systemNames: Record<string, string> = {
   "wake-up": "Wake up",
 };
 
-export const appNames: Record<string, string> = { discord: "Discord" };
+export const appNames: Record<string, string> = { discord: "Discord", obs: "OBS", media: "Media player" };
 
-// Words for app ops, from docs/discord.md.
-export const opNames: Record<string, string> = {
-  mute: "Mute",
-  deafen: "Deafen",
-  "push-to-talk": "Push to talk",
-  "push-to-mute": "Push to mute",
-  open: "Open Discord",
-  channel: "Open a channel",
-  "join-voice": "Join a voice channel",
-  "leave-voice": "Leave voice",
-  "voice-mode": "Switch voice mode",
-  "noise-suppression": "Noise suppression",
-  "echo-cancellation": "Echo cancellation",
-  "auto-gain": "Automatic gain",
-  "input-volume-up": "Mic volume up",
-  "input-volume-down": "Mic volume down",
-  "output-volume-up": "Volume up",
-  "output-volume-down": "Volume down",
+// Words for app ops, by app (d200-deck docs/discord.md, obs.md, media.md).
+const opNames: Record<string, string> = {
+  "discord.mute": "Mute",
+  "discord.deafen": "Deafen",
+  "discord.push-to-talk": "Push to talk",
+  "discord.push-to-mute": "Push to mute",
+  "discord.open": "Open Discord",
+  "discord.channel": "Open a channel",
+  "discord.join-voice": "Join a voice channel",
+  "discord.leave-voice": "Leave voice",
+  "discord.voice-mode": "Switch voice mode",
+  "discord.noise-suppression": "Noise suppression",
+  "discord.echo-cancellation": "Echo cancellation",
+  "discord.auto-gain": "Automatic gain",
+  "discord.input-volume-up": "Mic volume up",
+  "discord.input-volume-down": "Mic volume down",
+  "discord.output-volume-up": "Volume up",
+  "discord.output-volume-down": "Volume down",
+  "obs.scene": "Switch scene",
+  "obs.stream": "Start or stop streaming",
+  "obs.record": "Start or stop recording",
+  "obs.pause-record": "Pause or resume recording",
+  "obs.replay-buffer": "Start or stop the replay buffer",
+  "obs.save-replay": "Save the replay",
+  "obs.virtual-cam": "Start or stop the virtual camera",
+  "obs.mute": "Mute an audio source",
+  "media.play-pause": "Play or pause",
+  "media.next": "Next track",
+  "media.previous": "Previous track",
+  "media.stop": "Stop",
+  "media.shuffle": "Shuffle",
+  "media.repeat": "Repeat",
 };
 
-// Ops that take args, and which (docs/discord.md).
+export const opName = (app = "", op = "") => opNames[`${app}.${op}`] ?? op;
+
+// Media player keys work as the plain media keys without the PC helper;
+// these don't.
+export const mediaNeedsHelper = new Set(["shuffle", "repeat"]);
+
+const player = { name: "id", label: "Player (empty for the one playing)" };
+
+// Ops that take args, and which.
 export const opArgs: Record<string, { name: string; label: string; number?: boolean }[]> = {
   "discord.channel": [
     { name: "id", label: "Channel ID" },
@@ -80,6 +102,9 @@ export const opArgs: Record<string, { name: string; label: string; number?: bool
   "discord.input-volume-down": [{ name: "step", label: "Step (default 10)", number: true }],
   "discord.output-volume-up": [{ name: "step", label: "Step (default 10)", number: true }],
   "discord.output-volume-down": [{ name: "step", label: "Step (default 10)", number: true }],
+  "obs.scene": [{ name: "id", label: "Scene name" }],
+  "obs.mute": [{ name: "id", label: "Audio source name" }],
+  ...Object.fromEntries(["play-pause", "next", "previous", "stop", "shuffle", "repeat"].map((op) => [`media.${op}`, [player]])),
 };
 
 // splitCommand splits a command line into words; quotes keep spaces.

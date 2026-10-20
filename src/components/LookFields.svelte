@@ -91,6 +91,9 @@
     }
   }
 
+  // characters the label's font doesn't have show as boxes
+  let missing = $derived(look.label ? (deck()?.missingGlyphs(look) ?? "") : "");
+
   // the device keeps up to 32 characters on up to 3 lines
   let labelError = $derived.by(() => {
     const l = look.label ?? "";
@@ -137,6 +140,7 @@
   <textarea rows="2" bind:value={() => look.label ?? "", (v) => set(look, "label", v)}></textarea>
 </label>
 {#if labelError}<p class="bad">{labelError}</p>{/if}
+{#if missing}<p class="warn small">The device can't draw {[...missing].join(" ")} in this font: it shows a box.</p>{/if}
 
 <div class="row">
   <label class="grow">

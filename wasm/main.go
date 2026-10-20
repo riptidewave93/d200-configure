@@ -12,6 +12,9 @@
 //	fitImage(bytes, width, height, maxBytes) -> JSON {data (base64), width, height, frames,
 //	  dropped, changed} or {error}: a picture fitted to the device (see package fit)
 //	imageInfo(base64) -> JSON {width, height, frames} or {error}
+//	newPage(): the preview shows another page (render.NewPage: each page has its own
+//	  animation budget)
+//	missingGlyphs(buttonJSON) -> the label characters its font lacks, as a string
 //	layout -> JSON: {width, height, keys: [{x, y, w, h}]}, the key windows on the screen
 //	iconNames -> JSON: every icon in the catalog, sorted
 //	iconPath(name) -> {d, viewBox}: a catalog icon as SVG path data (nonzero fill), or null
@@ -45,6 +48,8 @@ func main() {
 		"renderKey":     js.FuncOf(renderKey),
 		"fitImage":      js.FuncOf(fitImage),
 		"imageInfo":     js.FuncOf(imageInfo),
+		"newPage":       js.FuncOf(func(js.Value, []js.Value) any { renderer.NewPage(); return nil }),
+		"missingGlyphs": js.FuncOf(missingGlyphs),
 		"layout":        layout(),
 		"iconNames":     marshal(icons.Names()),
 		"iconPath":      js.FuncOf(iconPath),
@@ -131,6 +136,13 @@ func renderKey(_ js.Value, args []js.Value) any {
 	return map[string]any{"width": img.Rect.Dx(), "height": img.Rect.Dy(), "data": data, "next": next}
 }
 
+func missingGlyphs(_ js.Value, args []js.Value) any {
+	if len(args) != 1 {
+		return ""
+	}
+	return string(renderer.MissingGlyphs(button(args[0].String())))
+}
+
 func fitImage(_ js.Value, args []js.Value) any {
 	if len(args) != 4 {
 		return marshal(map[string]any{"error": "fitImage needs bytes, width, height and maxBytes"})
@@ -192,7 +204,7 @@ func names() string {
 		"usages":    slices.Sorted(maps.Keys(deck.UsageNames)),
 		"systems":   slices.Sorted(maps.Keys(deck.SystemNames)),
 		"fonts":     deck.BuiltinFonts,
-		"apps":      map[string][]string{deck.AppDiscord: deck.DiscordOps},
+		"apps":      map[string][]string{deck.AppDiscord: deck.DiscordOps, deck.AppOBS: deck.OBSOps, deck.AppMedia: deck.MediaOps},
 	})
 }
 

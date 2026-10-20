@@ -3,7 +3,7 @@
 
 import "../wasm/wasm_exec.js";
 import wasmURL from "../wasm/deck.wasm?url";
-import type { Button, Config, IconEntry } from "./config";
+import type { Button, Config, IconEntry, Look } from "./config";
 import type { Layout } from "./layout";
 
 export interface Names {
@@ -55,6 +55,11 @@ export interface Deck {
   // device needs; it throws why it can't
   fitImage(b: Uint8Array, width: number, height: number, maxBytes: number): Fitted;
   imageInfo(base64: string): ImageInfo | null;
+  // newPage says the preview shows another page: each has its own budget
+  // of animated frames, as on the device
+  newPage(): void;
+  // missingGlyphs are the label characters the look's font lacks
+  missingGlyphs(look: Look): string;
   layout: Layout;
   names: Names;
   icons: string[];
@@ -75,6 +80,8 @@ interface Exports {
   renderKey(i: number, json: string, on: boolean): Pixels | null;
   fitImage(b: Uint8Array, width: number, height: number, maxBytes: number): string;
   imageInfo(base64: string): string;
+  newPage(): void;
+  missingGlyphs(json: string): string;
   layout: string;
   iconNames: string;
   iconPath(name: string): IconPath | null;
@@ -125,6 +132,8 @@ async function start(code?: BufferSource): Promise<Deck> {
       if (r.error) throw new Error(r.error);
       return r;
     },
+    newPage: () => x.newPage(),
+    missingGlyphs: (l) => x.missingGlyphs(JSON.stringify({ ...l, action: {} })),
     imageInfo: (s) => {
       const r = JSON.parse(x.imageInfo(s));
       return r.error ? null : r;
