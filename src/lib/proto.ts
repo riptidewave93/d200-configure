@@ -1,14 +1,22 @@
 // The config channel protocol, as in d200-deck's proto/raw.go and docs/api.md.
 // Names follow the Go ones so the two are easy to compare.
 
+// Input reports are 64 bytes (protocol 3) or 1024 (protocol 4). A reply's
+// header has a 1-byte length in the first and a 2-byte one in the second,
+// so each report is read by its size.
 export const RawInSize = 64;
+export const RawInSizeLarge = 1024;
 export const RawOutSize = 1024;
 export const MaxRequest = RawOutSize - 5;
 export const MaxReply = RawInSize - 5;
+export const MaxReplyLarge = RawInSizeLarge - 6;
 export const MaxMessage = 64 << 10;
 
 export const RawUsagePage = 0xffd2;
+// The oldest protocol the site talks; protocol 4 adds 1024-byte input
+// reports and gzipped config transfers.
 export const Version = 3;
+export const VersionLarge = 4;
 
 export const Cmd = {
   Hello: 0x01,
@@ -32,7 +40,9 @@ export const TimePeriod = 60 * 60_000;
 // reply comes after the press.
 export const ConfirmTimeout = 60_000;
 
-export const MaxConfigRead = 16384;
+export const MaxConfigRead = 16384; // per config-read, protocol 3
+export const MaxConfigReadLarge = 61440; // protocol 4
+export const ConfigReadGzip = 0x01; // config-read flag: read the gzip stream
 export const MaxConfigData = MaxRequest - 4;
 
 export const EventSeq = 0;
@@ -93,6 +103,7 @@ export interface Settings {
 export interface ConfigInfo {
   rev: string;
   size: number;
+  gzip_size?: number; // asked for with {"gzip": true}, protocol 4
 }
 
 export interface KeyEvent {
@@ -120,13 +131,16 @@ export interface ReplyPart {
 }
 
 export function decodeReply(b: Uint8Array): ReplyPart {
-  if (b.length < 5 || b[4] > b.length - 5) throw new Error("bad reply");
+  const large = b.length > RawInSize;
+  const head = large ? 6 : 5;
+  const n = large ? b[4] | (b[5] << 8) : b[4];
+  if (b.length < head || n > b.length - head) throw new Error("bad reply");
   return {
     seq: b[0] | (b[1] << 8),
     status: b[2],
     first: (b[3] & FlagFirst) !== 0,
     more: (b[3] & FlagMore) !== 0,
-    payload: b.subarray(5, 5 + b[4]),
+    payload: b.subarray(head, head + n),
   };
 }
 
@@ -145,18 +159,27 @@ export function decodeRequest(b: Uint8Array): Request {
   return { seq: b[0] | (b[1] << 8), cmd: b[2], payload: b.slice(5, 5 + n) };
 }
 
-export function encodeReply(seq: number, status: number, payload: Uint8Array = new Uint8Array()): Uint8Array[] {
+// encodeReply splits a reply into input reports of size bytes.
+export function encodeReply(
+  seq: number,
+  status: number,
+  payload: Uint8Array = new Uint8Array(),
+  size = RawInSize,
+): Uint8Array[] {
+  const large = size > RawInSize;
+  const head = large ? 6 : 5;
   const out: Uint8Array[] = [];
   let off = 0;
   do {
-    const n = Math.min(payload.length - off, MaxReply);
-    const b = new Uint8Array(RawInSize);
+    const n = Math.min(payload.length - off, size - head);
+    const b = new Uint8Array(size);
     b[0] = seq & 0xff;
     b[1] = seq >> 8;
     b[2] = status;
     b[3] = (off === 0 ? FlagFirst : 0) | (off + n < payload.length ? FlagMore : 0);
-    b[4] = n;
-    b.set(payload.subarray(off, off + n), 5);
+    b[4] = n & 0xff;
+    if (large) b[5] = n >> 8;
+    b.set(payload.subarray(off, off + n), head);
     out.push(b);
     off += n;
   } while (off < payload.length);

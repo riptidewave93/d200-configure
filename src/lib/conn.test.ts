@@ -21,6 +21,13 @@ describe("framing", () => {
     expect(new Uint8Array(parts.flatMap((p) => [...p.payload]))).toEqual(payload);
   });
 
+  it("reads 1024-byte reports with a 2-byte length", () => {
+    const payload = new Uint8Array(1500).map((_, i) => i);
+    const parts = encodeReply(9, 0, payload, 1024).map(decodeReply);
+    expect(parts.map((p) => p.payload.length)).toEqual([1018, 482]);
+    expect(new Uint8Array(parts.flatMap((p) => [...p.payload]))).toEqual(payload);
+  });
+
   it("sends one report for an empty reply", () => {
     const [p] = encodeReply(7, 3).map(decodeReply);
     expect(p).toMatchObject({ seq: 7, status: 3, first: true, more: false });
@@ -106,21 +113,46 @@ describe("Conn", () => {
   });
 });
 
-describe("config", () => {
+// Protocol 3 moves configs as they are in 64-byte reports; 4 gzips them,
+// in 1024-byte reports.
+describe.each([3, 4])("config, protocol %i", (protocol) => {
+  async function open(dev = new FakeDevice()) {
+    dev.hello.protocol = protocol;
+    const c = connect(dev);
+    await c.conn.hello();
+    return c;
+  }
+
   // big enough to need several reads and many writes
   const big = { version: 1, home: "main", pages: { main: { keys: {} } }, images: { a: "x".repeat(100_000) } };
 
   it("reads the config", async () => {
-    const { dev, conn } = connect(new FakeDevice(big));
+    const { dev, conn } = await open(new FakeDevice(big));
     const seen: number[] = [];
     const { data, info } = await conn.readConfig((n) => seen.push(n));
     expect(JSON.parse(new TextDecoder().decode(data))).toEqual(big);
     expect(info.rev).toBe(await sha256(dev.config));
-    expect(seen.at(-1)).toBe(info.size);
+    expect(seen.at(-1)).toBe(protocol === 4 ? info.gzip_size : info.size);
+  });
+
+  it("moves less when gzipped", async () => {
+    const { dev, conn } = await open();
+    let sent = 0;
+    const send = dev.send.bind(dev);
+    dev.send = (r) => {
+      const req = decodeRequest(r);
+      if (req.cmd === Cmd.ConfigData) sent += req.payload.length - 4;
+      return send(r);
+    };
+    const data = new TextEncoder().encode(JSON.stringify(big));
+    await conn.writeConfig("", data);
+    expect(dev.config).toEqual(data);
+    if (protocol === 4) expect(sent).toBeLessThan(data.length / 10);
+    else expect(sent).toBe(data.length);
   });
 
   it("writes the config and sends config-changed", async () => {
-    const { dev, conn } = connect();
+    const { dev, conn } = await open();
     const { info } = await conn.readConfig();
     const changed: string[] = [];
     conn.onEvent((code, p) => code === Event.ConfigChanged && changed.push(JSON.parse(new TextDecoder().decode(p)).rev));
@@ -133,7 +165,7 @@ describe("config", () => {
   });
 
   it("waits while the device asks, and says it's asking", async () => {
-    const { dev, conn } = connect();
+    const { dev, conn } = await open();
     dev.ask = { delay: 600, yes: true }; // past the 200 ms reply timeout
     let asked = 0;
     const data = new TextEncoder().encode(JSON.stringify(big));
@@ -143,7 +175,7 @@ describe("config", () => {
   });
 
   it("fails when the device's question is cancelled", async () => {
-    const { dev, conn } = connect();
+    const { dev, conn } = await open();
     dev.ask = { delay: 10, yes: false };
     await expect(conn.writeConfig("", new TextEncoder().encode("{}"))).rejects.toThrow("cancelled on the device");
     await expect(conn.settings({ usb_net4: "10.0.0.4" })).rejects.toThrow("cancelled on the device");
@@ -151,7 +183,7 @@ describe("config", () => {
   });
 
   it("refuses a write over a config that changed", async () => {
-    const { dev, conn } = connect();
+    const { dev, conn } = await open();
     const { info } = await conn.readConfig();
     dev.config = new TextEncoder().encode('{"changed": true}');
     const err = await conn.writeConfig(info.rev, new TextEncoder().encode("{}")).catch((e) => e);

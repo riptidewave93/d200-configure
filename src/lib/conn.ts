@@ -11,12 +11,16 @@ import {
   type Hello,
   type HostInfo,
   MaxConfigData,
+  ConfigReadGzip,
   MaxConfigRead,
+  MaxConfigReadLarge,
   MaxMessage,
   type Settings,
   Status,
   type Time,
+  VersionLarge,
 } from "./proto";
+import { gunzip, gzip } from "./gzip";
 
 // Transport moves raw reports to and from the device.
 export interface Transport {
@@ -65,6 +69,8 @@ export class Conn {
   private synced = false;
   private listeners = new Set<EventListener>();
   private closed = false;
+  // the device's protocol, from hello: 4 moves configs gzipped
+  protocol = 0;
 
   constructor(
     private t: Transport,
@@ -161,8 +167,14 @@ export class Conn {
     return JSON.parse(text.decode(b)) as T;
   }
 
-  hello() {
-    return this.requestJSON<Hello>(Cmd.Hello);
+  async hello() {
+    const h = await this.requestJSON<Hello>(Cmd.Hello);
+    this.protocol = h.protocol;
+    return h;
+  }
+
+  private get gzipped() {
+    return this.protocol >= VersionLarge;
   }
 
   host() {
@@ -186,46 +198,57 @@ export class Conn {
     await this.request(Cmd.Identify, new Uint8Array([key]));
   }
 
-  configInfo() {
-    return this.requestJSON<ConfigInfo>(Cmd.ConfigInfo);
+  configInfo(gzip = false) {
+    return this.requestJSON<ConfigInfo>(Cmd.ConfigInfo, gzip ? { gzip: true } : undefined);
   }
 
-  // readConfig reads the config file and names its version.
+  // readConfig reads the config file and names its version. Protocol 4
+  // devices send it gzipped.
   async readConfig(progress?: Progress): Promise<{ data: Uint8Array; info: ConfigInfo }> {
-    const info = await this.configInfo();
-    const data = new Uint8Array(info.size);
+    const info = await this.configInfo(this.gzipped);
+    const total = this.gzipped ? (info.gzip_size ?? 0) : info.size;
+    const raw = new Uint8Array(total);
     let n = 0;
-    progress?.(0, info.size);
-    while (n < info.size) {
-      const req = new Uint8Array(6);
+    progress?.(0, total);
+    while (n < total) {
+      const req = new Uint8Array(this.gzipped ? 7 : 6);
       const v = new DataView(req.buffer);
       v.setUint32(0, n, true);
-      v.setUint16(4, MaxConfigRead, true);
+      v.setUint16(4, this.gzipped ? MaxConfigReadLarge : MaxConfigRead, true);
+      if (this.gzipped) req[6] = ConfigReadGzip;
       const part = await this.request(Cmd.ConfigRead, req);
       if (part.length === 0) break;
-      data.set(part.subarray(0, info.size - n), n);
+      raw.set(part.subarray(0, total - n), n);
       n += part.length;
-      progress?.(Math.min(n, info.size), info.size);
+      progress?.(Math.min(n, total), total);
     }
-    if (n < info.size || (await sha256(data)) !== info.rev) {
-      throw new Error("The config changed while it was read. Read it again.");
-    }
+    const changed = new Error("The config changed while it was read. Read it again.");
+    if (n < total) throw changed;
+    const data = this.gzipped ? await gunzip(raw, info.size).catch(() => new Uint8Array()) : raw;
+    if (data.length !== info.size || (await sha256(data)) !== info.rev) throw changed;
     return { data, info };
   }
 
   // writeConfig replaces the config with data, if it's still version base
   // ("" replaces any). If it gives keys new actions, the device asks first.
+  // Protocol 4 devices take it gzipped.
   async writeConfig(base: string, data: Uint8Array, progress?: Progress, asking?: Asking): Promise<ConfigInfo> {
-    const start = { base, size: data.length, sha256: await sha256(data) };
+    const sent = this.gzipped ? await gzip(data) : data;
+    const start = {
+      base,
+      size: data.length,
+      sha256: await sha256(data),
+      ...(this.gzipped ? { gzip_size: sent.length } : {}),
+    };
     await this.request(Cmd.ConfigWrite, json.encode(JSON.stringify(start)));
-    progress?.(0, data.length);
-    for (let off = 0; off < data.length; off += MaxConfigData) {
-      const chunk = data.subarray(off, off + MaxConfigData);
+    progress?.(0, sent.length);
+    for (let off = 0; off < sent.length; off += MaxConfigData) {
+      const chunk = sent.subarray(off, off + MaxConfigData);
       const part = new Uint8Array(4 + chunk.length);
       new DataView(part.buffer).setUint32(0, off, true);
       part.set(chunk, 4);
       await this.request(Cmd.ConfigData, part);
-      progress?.(off + chunk.length, data.length);
+      progress?.(off + chunk.length, sent.length);
     }
     return JSON.parse(text.decode(await this.askable(Cmd.ConfigCommit, undefined, asking))) as ConfigInfo;
   }

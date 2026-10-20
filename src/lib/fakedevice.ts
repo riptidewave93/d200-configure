@@ -1,9 +1,11 @@
 // FakeDevice plays the device end of the config channel in memory, for tests
 // and for working on the site without a device. It keeps the config as bytes
-// and doesn't check it the way the device does.
+// and doesn't check it the way the device does. It speaks protocol 4 (1024-
+// byte reports, gzipped transfers); set hello.protocol to 3 for an older one.
 
 import type { Transport } from "./conn";
 import { sha256 } from "./conn";
+import { gunzip, gzip } from "./gzip";
 import {
   Cmd,
   decodeRequest,
@@ -12,12 +14,16 @@ import {
   EventSeq,
   type Hello,
   type HostInfo,
+  ConfigReadGzip,
   MaxConfigRead,
+  MaxConfigReadLarge,
+  RawInSize,
+  RawInSizeLarge,
   type Request,
   type Settings,
   Status,
   type Time,
-  Version,
+  VersionLarge,
 } from "./proto";
 
 const text = new TextDecoder();
@@ -27,7 +33,7 @@ const json = (v: unknown) => bytes(JSON.stringify(v));
 export class FakeDevice implements Transport {
   onReport: ((report: Uint8Array) => void) | null = null;
   hello: Hello = {
-    protocol: Version,
+    protocol: VersionLarge,
     firmware: "fake",
     os: { name: "fake" },
     serial: "0123456789abcdef",
@@ -49,7 +55,19 @@ export class FakeDevice implements Transport {
   // set to ask on the "screen" before a commit or a new USB address: the
   // answer comes after delay ms
   ask: { delay: number; yes: boolean } | null = null;
-  private upload: { base: string; size: number; sha256: string; b: number[] } | null = null;
+  private upload: { base: string; size: number; sha256: string; gzip_size?: number; b: number[] } | null = null;
+  private gz: { rev: string; data: Uint8Array } | null = null;
+
+  private get large() {
+    return this.hello.protocol >= VersionLarge;
+  }
+
+  // the config gzipped, once per version, as the device keeps it
+  private async gzipped(): Promise<Uint8Array> {
+    const rev = await sha256(this.config);
+    if (this.gz?.rev !== rev) this.gz = { rev, data: await gzip(this.config) };
+    return this.gz.data;
+  }
 
   constructor(config: unknown = { version: 1, home: "main", pages: { main: { keys: {} } } }) {
     this.config = json(config);
@@ -69,7 +87,8 @@ export class FakeDevice implements Transport {
   }
 
   private reply(seq: number, status: number, payload?: Uint8Array) {
-    for (const r of encodeReply(seq, status, payload)) setTimeout(() => this.onReport?.(r));
+    const size = this.large ? RawInSizeLarge : RawInSize;
+    for (const r of encodeReply(seq, status, payload, size)) setTimeout(() => this.onReport?.(r));
   }
 
   // asked waits for the answer when set to ask; "" for yes, else why not.
@@ -112,14 +131,20 @@ export class FakeDevice implements Transport {
         Object.assign(this.settingsState, change);
         return [Status.OK, json(this.settingsState)];
       }
-      case Cmd.ConfigInfo:
-        return [Status.OK, json(await this.info())];
+      case Cmd.ConfigInfo: {
+        const info = await this.info();
+        if (this.large && p.length && JSON.parse(text.decode(p)).gzip) {
+          return [Status.OK, json({ ...info, gzip_size: (await this.gzipped()).length })];
+        }
+        return [Status.OK, json(info)];
+      }
       case Cmd.ConfigRead: {
-        if (p.length !== 6) return [Status.BadRequest];
+        if (p.length !== 6 && !(this.large && p.length === 7)) return [Status.BadRequest];
         const n = v.getUint16(4, true) || 4096;
-        if (n > MaxConfigRead) return [Status.BadRequest];
-        const off = Math.min(v.getUint32(0, true), this.config.length);
-        return [Status.OK, this.config.slice(off, off + n)];
+        if (n > (this.large ? MaxConfigReadLarge : MaxConfigRead)) return [Status.BadRequest];
+        const src = p.length === 7 && p[6] & ConfigReadGzip ? await this.gzipped() : this.config;
+        const off = Math.min(v.getUint32(0, true), src.length);
+        return [Status.OK, src.slice(off, off + n)];
       }
       case Cmd.ConfigWrite:
         this.upload = { ...JSON.parse(text.decode(p)), b: [] };
@@ -134,7 +159,11 @@ export class FakeDevice implements Transport {
         const u = this.upload;
         this.upload = null;
         if (!u) return [Status.BadRequest];
-        const b = new Uint8Array(u.b);
+        let b = new Uint8Array(u.b);
+        if (this.large && u.gzip_size !== undefined) {
+          if (b.length !== u.gzip_size) return [Status.Failed, bytes("the config arrived incomplete; send it again")];
+          b = await gunzip(b, u.size).catch(() => new Uint8Array());
+        }
         if (b.length !== u.size || (await sha256(b)) !== u.sha256) {
           return [Status.Failed, bytes("the config arrived incomplete or damaged; send it again")];
         }

@@ -57,8 +57,15 @@ d200-deck's [docs/api.md](https://github.com/riptidewave93/d200-deck/blob/main/d
 
 ## Reading and saving
 
-The config is one JSON file, images and fonts included, up to 2 MiB. It moves in parts of up to
-16 KiB (read) and 1 KiB (write): about 30 KB/s read and 50 KB/s write.
+The config is one JSON file, images and fonts included, up to 2 MiB. It moves in parts: 1 KiB
+per write, and per read 16 KiB (protocol 3) or 60 KiB (protocol 4).
+
+- **Protocol 3** devices answer in 64-byte reports: about 30 KB/s read and 50 KB/s write, so a
+  config full of GIFs takes half a minute.
+- **Protocol 4** devices answer in 1024-byte reports and move the config gzipped both ways
+  (`gzip.ts`, with the browser's `CompressionStream`). The site tells the two apart by the size of
+  each report, as [api.md](https://github.com/riptidewave93/d200-deck/blob/main/docs/api.md)
+  describes, so it works with either.
 
 1. On connect the site reads the config and remembers its **rev** (its SHA-256).
 2. Edits change the config in memory only.
