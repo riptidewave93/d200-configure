@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Config } from "./config";
-import { forDevice, newer, runnable, unsupported, unsupportedMessage, type Features } from "./features";
+import { forDevice, newer, older, runnable, unsupported, unsupportedMessage, type Features } from "./features";
 
 const site: Features = {
   actions: ["app", "hid-key", "macro", "page"],
@@ -48,7 +48,15 @@ describe("features", () => {
     expect(forDevice(s, { ...old, limits: { ...old.limits, anim_bytes: 4 << 20 } }).limits.anim_bytes).toBe(4 << 20);
   });
 
-  it("takes a device that doesn't say as supporting what the site does", () => {
+  it("takes a connected device that doesn't say as older: no anim_bytes", () => {
+    const s = { ...site, limits: { ...site.limits, anim_bytes: 8 << 20 } };
+    const f = forDevice(s, older(s));
+    expect(f.limits.anim_bytes).toBeUndefined();
+    expect({ ...f, limits: {} }).toEqual({ ...s, limits: {} });
+    expect(f.limits.label).toBe(32);
+  });
+
+  it("offers what the site supports with no device", () => {
     expect(forDevice(site, undefined)).toBe(site);
   });
 

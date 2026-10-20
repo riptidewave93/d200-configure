@@ -31,9 +31,9 @@ function byApp(site: Record<string, string[]>, other: Record<string, string[]>) 
 // works the older way.
 const newWays = ["anim_bytes"];
 
-// forDevice is what both the site and the device support: the site's own
-// list for a device that doesn't say (older software), and the smaller of
-// each limit.
+// forDevice is what both the site and the device support, the smaller of
+// each limit; the site's own with no device (for one that doesn't say, see
+// older).
 export function forDevice(site: Features, device?: Features | null): Features {
   if (!device) return site;
   return {
@@ -53,6 +53,12 @@ export function forDevice(site: Features, device?: Features | null): Features {
       }),
     ),
   };
+}
+
+// older is what a device that doesn't say (older software) is taken to
+// support: the site's lists, without the newer ways of working.
+export function older(site: Features): Features {
+  return { ...site, limits: Object.fromEntries(Object.entries(site.limits).filter(([k]) => !newWays.includes(k))) };
 }
 
 // runnable cuts app ops to those the PC helper runs, while it's connected.

@@ -12,7 +12,7 @@
   import { Device, message } from "./lib/device.svelte";
   import { Doc } from "./lib/doc.svelte";
   import { explain } from "./lib/errors";
-  import { forDevice, newer, runnable, unsupportedMessage } from "./lib/features";
+  import { forDevice, newer, older, runnable, unsupportedMessage } from "./lib/features";
   import { fontText, growFonts } from "./lib/fonts";
   import { modelFor } from "./lib/models";
   import { animBudget, animatedBytes } from "./lib/pictures";
@@ -23,7 +23,9 @@
   let deck = $state<Deck | null>(null);
   let model = $derived(modelFor(device.hello));
   // what the device takes, and of that what to offer
-  let takes = $derived(deck ? forDevice(deck.features, device.hello?.features) : null);
+  let takes = $derived(
+    deck ? forDevice(deck.features, device.hello && (device.hello.features ?? older(deck.features))) : null,
+  );
   let offered = $derived(takes ? runnable(takes, device.host) : null);
   let newerDevice = $derived(!!deck && newer(deck.features, device.hello?.features));
   setApp({ doc, device, deck: () => deck, model: () => model, features: () => offered });
@@ -231,6 +233,7 @@
       // a device in memory, to work on the site without one: ?fake
       Promise.all([import("./lib/fakedevice"), load()]).then(([{ FakeDevice }, d]) => {
         const fake = new FakeDevice(d.defaultConfig());
+        fake.hello.features = d.features; // as new as the site
         fake.host = { connected: true, name: "deckhost", version: "dev", apps: [{ name: "discord", title: "Discord" }] };
         device.open(fake);
       });
