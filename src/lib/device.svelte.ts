@@ -32,6 +32,10 @@ const hostPoll = 5000;
 
 // At most 10 changes a second while a slider moves or a button is pressed.
 const changeGap = 100;
+// While the site is open and visible, device keys only select keys here:
+// the device holds their actions while told so, and stops a while after
+// the last time it was told, so it's told again often.
+const editingRefresh = 3_000;
 // A device restarting after a reset is back in about 35 s.
 const restartWait = 90_000;
 // The alignment pattern ends by itself a minute after the last change, so
@@ -88,12 +92,16 @@ export class Device {
   private brightnessSender = latest((brightness: number) => this.change({ brightness }));
   private offsetSender = latest((screen_offset: Offset) => this.change({ screen_offset }));
   private pattern = 0;
+  private editing = 0;
 
   constructor() {
-    // a closed tab ends the alignment pattern, if it can
+    // a closed tab ends the alignment pattern and editing, if it can
     globalThis.addEventListener?.("pagehide", () => {
       if (this.pattern) this.showPattern(false).catch(() => {});
+      this.holdKeys(false);
     });
+    // device keys run their actions again while the site isn't seen
+    globalThis.document?.addEventListener("visibilitychange", () => this.holdKeys(visible()));
     if (typeof navigator !== "undefined" && "hid" in navigator) {
       navigator.hid.addEventListener("connect", (e) => this.plugged(e.device));
       navigator.hid.addEventListener("disconnect", (e) => this.unplugged(e.device));
@@ -167,6 +175,7 @@ export class Device {
       if (os) this.settings = await conn.settings({ host_os: os }).catch(() => this.settings);
       this.poll = window.setInterval(() => this.checkHost(), hostPoll);
       this.state = "ready";
+      this.holdKeys(visible());
     } catch (err) {
       await this.drop();
       this.error = message(err);
@@ -177,6 +186,7 @@ export class Device {
   }
 
   async disconnect() {
+    await this.holdKeys(false);
     await this.drop();
     this.hid = null;
     this.serial = "";
@@ -184,6 +194,8 @@ export class Device {
 
   private async drop() {
     clearInterval(this.poll);
+    clearInterval(this.editing);
+    this.editing = 0;
     clearInterval(this.pattern);
     clearInterval(this.clock);
     const conn = this.conn;
@@ -220,6 +232,7 @@ export class Device {
       case Event.USBRebinding:
         clearInterval(this.poll);
         clearInterval(this.clock);
+        clearInterval(this.editing);
         this.state = "reconnecting";
         break;
       case Event.ConfigChanged: {
@@ -338,6 +351,17 @@ export class Device {
     await this.connected().identify(key);
   }
 
+  // holdKeys tells a device that takes it to hold its keys' actions, so a
+  // press only selects the key here, or to run them again. Errors are
+  // ignored: at worst a key runs its action, as on older devices.
+  async holdKeys(on: boolean) {
+    const takes = !!this.hello?.features?.settings?.includes("editing");
+    if (!this.conn || !takes || (!on && !this.editing && !this.settings?.editing)) return;
+    clearInterval(this.editing);
+    this.editing = on ? window.setInterval(() => this.change({ editing: true }).catch(() => {}), editingRefresh) : 0;
+    await this.change({ editing: on }).catch(() => {});
+  }
+
   // reset erases the device's keys and settings, once confirmed on it; it
   // then restarts, and is reconnected when it's back.
   async reset() {
@@ -349,6 +373,7 @@ export class Device {
     clearInterval(this.poll);
     clearInterval(this.clock);
     clearInterval(this.pattern);
+    clearInterval(this.editing);
     this.state = "reconnecting";
     setTimeout(() => {
       if (this.state !== "reconnecting") return;
@@ -380,6 +405,9 @@ export function message(err: unknown): string {
   // the device's reasons start lower case, as Go errors do
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+// visible says whether the page is seen; without a document (tests), it is.
+const visible = () => globalThis.document?.visibilityState !== "hidden";
 
 // latest sends values as they come, at most one per changeGap, always the
 // last: a slider or a held button sends many.

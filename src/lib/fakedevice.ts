@@ -51,6 +51,7 @@ export class FakeDevice implements Transport {
     screen_offset_min: { x: -18, y: -3 },
     screen_offset_max: { x: 31, y: 2 },
     screen_pattern: false,
+    editing: false,
   };
   settingsChanges: Settings[] = [];
   config: Uint8Array;

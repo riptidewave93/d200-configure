@@ -426,6 +426,9 @@
         <div class="face">
           {#if deck}<Face {model} {doc} down={device.down} />{/if}
         </div>
+        {#if device.settings?.editing}
+          <p class="muted small held">Pressing a device key selects it here. Switch tabs to use the keys.</p>
+        {/if}
         {#if tooMuchMotion}
           <p class="warn small motion">
             Too much animation on this page: some pictures will stand still.
@@ -434,7 +437,7 @@
         {#if doc.key === null}
           <p class="muted hint">
             {#if Object.keys(doc.config.pages[doc.page]?.keys ?? {}).length}
-              Pick a key to change it{connected ? ", or press it on the device" : ""}.<span class="drag">{" "}Drag keys to move them; hold Alt to copy.</span>
+              Pick a key to change it{connected && !device.settings?.editing ? ", or press it on the device" : ""}.<span class="drag">{" "}Drag keys to move them; hold Alt to copy.</span>
             {:else}
               Nothing here yet. Pick a key to set it up.
             {/if}
@@ -628,6 +631,10 @@
   }
   .motion {
     margin: 14px 0 0;
+  }
+  .held {
+    text-align: center;
+    margin: 10px 0 0;
   }
   progress {
     width: 140px;

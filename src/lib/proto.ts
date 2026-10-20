@@ -118,6 +118,9 @@ export interface Settings {
   // the alignment pattern: not saved, and it ends by itself a minute after
   // the last change
   screen_pattern?: boolean;
+  // device keys only send key events, no actions: while the site is open
+  // and seen; not saved, and it ends by itself if not sent again
+  editing?: boolean;
 }
 
 export interface Offset {

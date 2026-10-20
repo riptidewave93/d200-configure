@@ -194,6 +194,57 @@ describe("device", () => {
     await d.disconnect();
   });
 
+  it("holds a device's key actions while the site is open, telling it again often", async () => {
+    const fake = new FakeDevice();
+    fake.hello.features = { settings: ["brightness", "editing"] } as Features;
+    const d = new Device();
+    await d.open(fake);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fake.settingsChanges).toEqual([{ editing: true }]);
+    expect(d.settings?.editing).toBe(true);
+    await vi.advanceTimersByTimeAsync(3000); // the device stops 10 s after the last
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fake.settingsChanges).toEqual([{ editing: true }, { editing: true }]);
+    // hidden, or disconnecting: keys run their actions again, and it isn't sent again
+    await d.holdKeys(false);
+    expect(d.settings?.editing).toBe(false);
+    await vi.advanceTimersByTimeAsync(20_000);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fake.settingsChanges).toHaveLength(3);
+    await d.holdKeys(true);
+    await d.disconnect();
+    expect(fake.settingsChanges.slice(3)).toEqual([{ editing: true }, { editing: false }]);
+  });
+
+  it("lets the keys run while the page isn't seen", async () => {
+    const listeners: (() => void)[] = [];
+    const doc = { visibilityState: "hidden", addEventListener: (_: string, f: () => void) => listeners.push(f) };
+    vi.stubGlobal("document", doc);
+    const fake = new FakeDevice();
+    fake.hello.features = { settings: ["editing"] } as Features;
+    const d = new Device();
+    await d.open(fake);
+    expect(fake.settingsChanges).toEqual([]); // opened in a hidden tab: nothing held
+    doc.visibilityState = "visible";
+    listeners.forEach((f) => f());
+    await new Promise((r) => setTimeout(r, 10));
+    doc.visibilityState = "hidden";
+    listeners.forEach((f) => f());
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fake.settingsChanges).toEqual([{ editing: true }, { editing: false }]);
+    await d.disconnect();
+    vi.unstubAllGlobals();
+  });
+
+  it("leaves an older device's keys as they are", async () => {
+    const fake = new FakeDevice(); // no features: older software
+    const d = new Device();
+    await d.open(fake);
+    await d.holdKeys(true);
+    await d.disconnect();
+    expect(fake.settingsChanges).toEqual([]);
+  });
+
   it("says when a device's software is newer than the site", async () => {
     const newer = new FakeDevice();
     newer.hello.protocol = 5;
