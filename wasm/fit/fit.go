@@ -98,12 +98,16 @@ func Fit(b []byte, box Box) (Picture, error) {
 	}
 }
 
-// animated fits an animated GIF: scaled, with every nth frame if it has too
-// many (their times added up), and only what changes stored for each frame.
+// animated fits an animated GIF: scaled, with fewer frames if it has too
+// many (see pick), and only what changes stored for each frame.
 func animated(b []byte, g *gif.GIF, box Box) (Picture, error) {
 	w0, h0 := g.Config.Width, g.Config.Height
 	frames, delays := composite(g)
 	n := len(frames)
+	thumbs := make([][]uint8, n)
+	for i, f := range frames {
+		thumbs[i] = resize(f, thumbSide, thumbSide).Pix
+	}
 	// the device draws it scaled to fit the box, larger too
 	dw, dh := size(w0, h0, min(float64(box.Width)/float64(w0), float64(box.Height)/float64(h0)))
 	tooMany := func(frames, w, h int) bool {
@@ -121,8 +125,9 @@ func animated(b []byte, g *gif.GIF, box Box) (Picture, error) {
 		for tooMany(kept(n, step), w, h) {
 			step++
 		}
-		out := encodeGIF(frames, delays, step, w, h, g.LoopCount)
 		k := kept(n, step)
+		keep, times := pick(thumbs, delays, k)
+		out := encodeGIF(frames, keep, times, w, h, g.LoopCount)
 		if len(out) <= box.Bytes {
 			return Picture{Data: out, Width: w, Height: h, Frames: k, Dropped: n - k, Changed: true}, check(out)
 		}
@@ -135,6 +140,68 @@ func animated(b []byte, g *gif.GIF, box Box) (Picture, error) {
 }
 
 func kept(n, step int) int { return (n + step - 1) / step }
+
+// The side of the thumbnails frames are compared by, and how unlike two
+// thumbnails must be, on average per colour channel, to look different.
+const (
+	thumbSide = 16
+	stillDiff = 2
+)
+
+// pick chooses k of the frames to keep. The frames are split into k runs of
+// about equal length; each run gives the frame that looks most unlike the
+// one kept before it, and shows for the whole run. So a GIF that flips
+// between two poses every frame, like a clap, keeps both poses.
+func pick(thumbs [][]uint8, delays []int, k int) (keep, times []int) {
+	n := len(thumbs)
+	diff := func(a, b int) int {
+		d := 0
+		for j := range thumbs[a] {
+			d += abs(int(thumbs[a][j]) - int(thumbs[b][j]))
+		}
+		return d
+	}
+	unlike := func(lo, hi, ref int) int {
+		best := lo
+		for i := lo + 1; i < hi; i++ {
+			if diff(i, ref) > diff(best, ref) {
+				best = i
+			}
+		}
+		return best
+	}
+	run := func(r int) (int, int) { return r * n / k, (r + 1) * n / k }
+	for r := range k {
+		lo, hi := run(r)
+		i := lo // the first frame stays first
+		if r > 0 {
+			i = unlike(lo, hi, keep[r-1])
+		}
+		t := 0
+		for _, d := range delays[lo:hi] {
+			t += d
+		}
+		keep, times = append(keep, i), append(times, t)
+	}
+	// all the movement was in the first run: show it there
+	if k > 1 && !moves(keep, diff) {
+		lo, hi := run(0)
+		keep[0] = unlike(lo, hi, keep[1])
+	}
+	return keep, times
+}
+
+// moves says whether any of the frames looks different from the first.
+func moves(frames []int, diff func(a, b int) int) bool {
+	for _, i := range frames[1:] {
+		if diff(frames[0], i) > stillDiff*thumbSide*thumbSide*4 {
+			return true
+		}
+	}
+	return false
+}
+
+func abs(x int) int { return max(x, -x) }
 
 // composite draws each frame over what the frames before it left, as a
 // GIF is shown, giving whole pictures and their delays.
@@ -170,19 +237,13 @@ func composite(g *gif.GIF) ([]*image.RGBA, []int) {
 	return frames, delays
 }
 
-// encodeGIF scales every step-th frame to w x h and encodes them with one
-// palette. Each frame stores only the pixels that change, unless something
+// encodeGIF scales the frames in keep to w x h and encodes them with one
+// palette, each shown for its time. Each frame stores only the pixels that change, unless something
 // turns transparent: then the frame before it is cleared and it's stored whole.
-func encodeGIF(frames []*image.RGBA, delays []int, step, w, h, loop int) []byte {
-	var small []*image.RGBA
-	var times []int
-	for i := 0; i < len(frames); i += step {
-		small = append(small, resize(frames[i], w, h))
-		t := 0
-		for j := i; j < i+step && j < len(frames); j++ {
-			t += delays[j]
-		}
-		times = append(times, t)
+func encodeGIF(frames []*image.RGBA, keep, times []int, w, h, loop int) []byte {
+	small := make([]*image.RGBA, len(keep))
+	for i, f := range keep {
+		small[i] = resize(frames[f], w, h)
 	}
 	pal, index := palette(small)
 	none := uint8(len(pal) - 1) // the transparent entry

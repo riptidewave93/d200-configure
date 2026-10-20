@@ -149,6 +149,82 @@ func TestKeepsAnimationsMoving(t *testing.T) {
 	}
 }
 
+// clap is an animated GIF that flips between two poses every frame.
+func clap(side, frames int) []byte {
+	pal := color.Palette{color.RGBA{}, color.RGBA{255, 200, 0, 255}}
+	g := &gif.GIF{Config: image.Config{ColorModel: pal, Width: side, Height: side}}
+	for i := range frames {
+		p := image.NewPaletted(image.Rect(0, 0, side, side), pal)
+		gap := side / 4 // hands apart, then together
+		if i%2 == 1 {
+			gap = side / 16
+		}
+		for y := side / 4; y < side*3/4; y++ {
+			for x := range side / 6 {
+				p.SetColorIndex(side/2-gap-x, y, 1)
+				p.SetColorIndex(side/2+gap+x, y, 1)
+			}
+		}
+		g.Image = append(g.Image, p)
+		g.Delay = append(g.Delay, 4)
+		g.Disposal = append(g.Disposal, gif.DisposalBackground)
+	}
+	var buf bytes.Buffer
+	if err := gif.EncodeAll(&buf, g); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+func TestKeepsBothPoses(t *testing.T) {
+	// too many frame pixels across a key, so frames go; keeping every
+	// other one would keep one pose and stand still
+	p, err := Fit(clap(64, 80), imageBox)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Dropped == 0 {
+		t.Fatalf("frames should go: %+v", p)
+	}
+	g, _ := gif.DecodeAll(bytes.NewReader(p.Data))
+	frames, _ := composite(g)
+	thumbs := make([][]uint8, len(frames))
+	keep := make([]int, len(frames))
+	for i, f := range frames {
+		thumbs[i] = resize(f, thumbSide, thumbSide).Pix
+		keep[i] = i
+	}
+	if !moves(keep, func(a, b int) int { return sad(thumbs[a], thumbs[b]) }) {
+		t.Fatal("every frame kept shows the same pose")
+	}
+}
+
+func TestPicksMovementAnywhere(t *testing.T) {
+	a, b := make([]uint8, thumbSide*thumbSide*4), make([]uint8, thumbSide*thumbSide*4)
+	for j := range b {
+		b[j] = 255
+	}
+	// 6 frames into 3: the blink is in the first run only
+	thumbs := [][]uint8{a, b, a, a, a, a}
+	keep, times := pick(thumbs, []int{4, 4, 4, 4, 4, 4}, 3)
+	if keep[0] != 1 || times[0]+times[1]+times[2] != 24 {
+		t.Fatalf("kept %v for %v", keep, times)
+	}
+	// two poses into 3: they take turns
+	thumbs = [][]uint8{a, b, a, b, a, b}
+	if keep, _ := pick(thumbs, []int{4, 4, 4, 4, 4, 4}, 3); thumbs[keep[0]][0] == thumbs[keep[1]][0] {
+		t.Fatalf("kept %v", keep)
+	}
+}
+
+func sad(a, b []uint8) int {
+	d := 0
+	for j := range a {
+		d += abs(int(a[j]) - int(b[j]))
+	}
+	return d
+}
+
 func TestStoredChangesPlayBack(t *testing.T) {
 	// only changed pixels are stored, so play the result back and compare
 	// each frame with the original's, scaled
