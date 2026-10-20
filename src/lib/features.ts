@@ -17,6 +17,7 @@ export interface Features {
   apps: Record<string, string[]>; // ops by app
   args: Record<string, string[]>; // args by app
   limits: Record<string, number>;
+  settings?: string[]; // the device settings it takes; older software doesn't say
 }
 
 const both = (a: string[], b: string[]) => a.filter((x) => b.includes(x));
@@ -87,6 +88,7 @@ const fieldWords: Record<string, string> = {
   "config.images": "pictures",
   "icon.png": "emoji and picture icons",
   "action.fallback": "keys that do something else without the PC helper",
+  "action.mac_keys": "Mac key combos",
 };
 
 // unsupported lists, in words, what c uses that f doesn't support.
@@ -111,7 +113,7 @@ export function unsupported(c: Config, f: Features): string[] {
   const action = (a: Action) => {
     field("action", a);
     if (a.type && !f.actions.includes(a.type)) out.add(`"${typeName(a.type)}" keys`);
-    for (const k of a.keys ?? []) {
+    for (const k of [...(a.keys ?? []), ...(a.mac_keys ?? [])]) {
       const n = k.toLowerCase();
       if (!f.keys.includes(n) && !f.modifiers.includes(n)) out.add(`the key ${n}`);
     }

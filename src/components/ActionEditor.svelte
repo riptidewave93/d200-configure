@@ -25,6 +25,7 @@
   import { set } from "../lib/edit";
   import ActionEditor from "./ActionEditor.svelte";
   import ComboField from "./ComboField.svelte";
+  import { comboField, macKeys } from "../lib/mac";
 
   let {
     action = $bindable(),
@@ -36,6 +37,9 @@
   // what the device supports, plus what this action already has, so the
   // lists show it (saving says what the device can't take)
   let f = $derived(features());
+  // a key combo shows, and edits, the combo for this computer
+  let mac = $derived(macKeys(f));
+  let combo = $derived(comboField(action, device.os, mac));
   const plus = (l: string[] | undefined, v: unknown) =>
     l && typeof v === "string" && v && !l.includes(v) ? [...l, v] : l;
   let offered = $derived(types.filter((t) => !t || !f || f.actions.includes(t) || t === action.type));
@@ -139,7 +143,7 @@
 </label>
 
 {#if action.type === "hid-key"}
-  <ComboField keys={action.keys} {known} onchange={(k) => set(action, "keys", k)} />
+  <ComboField keys={action[combo]} {known} onchange={(k) => set(action, combo, k)} />
 {:else if action.type === "hid-consumer"}
   <select
     value={usageNumber ? "number" : action.usage}
@@ -320,7 +324,7 @@
       : `${appNames[action.app ?? ""] ?? action.app} isn't set up in the PC helper yet`}{action.fallback
       ? ", so the device does the fallback below instead."
       : builtin
-        ? `, so the device presses ${describe(builtin)} instead.`
+        ? `, so the device presses ${describe(builtin, device.os, mac)} instead.`
         : ", so this won't work yet."}
   </p>
 {/if}
@@ -332,7 +336,7 @@
       <ActionEditor bind:action={action.fallback} types={fallbackTypes} label="Instead, the device does" />
       <button type="button" class="plain" onclick={() => delete action.fallback}>Remove</button>
     {:else}
-      {#if builtin}<p class="muted small">Built in: {describe(builtin)}. Set something else to replace it.</p>{/if}
+      {#if builtin}<p class="muted small">Built in: {describe(builtin, device.os, mac)}. Set something else to replace it.</p>{/if}
       <button type="button" class="plain" onclick={() => (action.fallback = { type: "hid-key", keys: [] })}
         >+ Something the device does instead</button
       >

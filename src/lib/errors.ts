@@ -34,6 +34,8 @@ function fix(why: string): string {
   if (fallback) return `without the PC helper: ${fix(fallback[1])}`;
   const on = why.match(/^on: (.*)$/);
   if (on) return `look while on: ${fix(on[1])}`;
+  const mac = why.match(/^mac_keys: (.*)$/);
+  if (mac) return `on a Mac: ${fix(mac[1])}`;
   for (const [re, words] of fixes) {
     const m = why.match(re);
     if (m) return typeof words === "string" ? words : words(m);

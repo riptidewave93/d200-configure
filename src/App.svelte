@@ -13,6 +13,7 @@
   import { Doc } from "./lib/doc.svelte";
   import { explain } from "./lib/errors";
   import { forDevice, newer, older, runnable, unsupportedMessage } from "./lib/features";
+  import { macKeys, withoutMacKeys } from "./lib/mac";
   import { fontText, growFonts } from "./lib/fonts";
   import { modelFor } from "./lib/models";
   import { animBudget, animatedBytes } from "./lib/pictures";
@@ -157,12 +158,14 @@
         return;
       }
     }
-    const lacks = takes && doc.config ? unsupportedMessage(doc.config, takes) : "";
+    // a device without Mac key combos presses keys everywhere
+    const sent = takes && doc.config && !macKeys(takes) ? withoutMacKeys(doc.config) : doc.config;
+    const lacks = takes && sent ? unsupportedMessage(sent, takes) : "";
     if (lacks) {
       error = lacks;
       return;
     }
-    const json = JSON.stringify(doc.config);
+    const json = JSON.stringify(sent);
     const why = deck?.validate(json);
     if (why) {
       cantSave(why);

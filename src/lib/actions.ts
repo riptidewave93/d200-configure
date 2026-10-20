@@ -1,5 +1,6 @@
 import type { Action } from "./config";
 import { formatCombo } from "./keys";
+import { comboField, type OS } from "./mac";
 
 // What a key can do, in words for people. Types and fields are in
 // d200-deck's docs/config.md.
@@ -109,9 +110,9 @@ const opNames: Record<string, string> = {
 export const opName = (app = "", op = "") => opNames[`${app}.${op}`] ?? op;
 
 // describe says in a few words what a device action does, e.g. "ctrl +
-// shift + m" or "the Play / pause key".
-export function describe(a: Action): string {
-  if (a.type === "hid-key") return formatCombo(a.keys ?? []);
+// shift + m" or "the Play / pause key": on os, with Mac key combos if mac.
+export function describe(a: Action, os: OS = "other", mac = false): string {
+  if (a.type === "hid-key") return formatCombo(a[comboField(a, os, mac)] ?? []);
   if (a.type === "hid-consumer") {
     const name = usageNames[String(a.usage)];
     return name ? `the ${name} key` : `media key ${a.usage}`;

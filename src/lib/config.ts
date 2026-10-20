@@ -49,6 +49,7 @@ export interface Action {
   system?: string;
   page?: string;
   keys?: string[];
+  mac_keys?: string[]; // keys on a Mac, if they differ
   text?: string;
   steps?: Action[];
   ms?: number;

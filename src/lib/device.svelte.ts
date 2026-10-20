@@ -3,6 +3,7 @@
 
 import { Conn, DeviceError, type Progress, type Transport } from "./conn";
 import { Event, Status, TimePeriod, Version, VersionMax, type ConfigInfo, type Hello, type HostInfo, type KeyEvent, type Settings } from "./proto";
+import { browserOS, hostOS, type OS } from "./mac";
 import { HIDTransport, known, pick } from "./webhid";
 
 export type State =
@@ -65,6 +66,8 @@ export class Device {
   private serial = "";
   private poll = 0;
   private clock = 0;
+  // the computer the site runs on, which the device is plugged into
+  os: OS = browserOS();
   private brightness = 0;
   private sendingBrightness = false;
 
@@ -137,6 +140,9 @@ export class Device {
       this.clock = window.setInterval(() => this.setClock(), TimePeriod);
       this.settings = await conn.settings();
       await this.checkHost();
+      // tell the device which computer this is, unless the PC helper has
+      const os = hostOS(this.os, hello.features, this.settings, this.host);
+      if (os) this.settings = await conn.settings({ host_os: os }).catch(() => this.settings);
       this.poll = window.setInterval(() => this.checkHost(), hostPoll);
       this.state = "ready";
     } catch (err) {

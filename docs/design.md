@@ -72,6 +72,9 @@ It's built with TinyGo, so:
   runs.
 - Settings show only when the device reports them. Brightness is sent at most 10 times a second
   while the slider moves, and always the last value.
+- On connect the site sets `host_os` to the browser's computer, if it changed and the PC helper
+  isn't connected. On a Mac the editor shows and edits a combo's `mac_keys` where it has them,
+  else `keys` (`mac.ts`); a device without `action.mac_keys` is sent the config without them.
 
 ## Saving
 

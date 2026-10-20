@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Device } from "./device.svelte";
 import { FakeDevice } from "./fakedevice";
+import type { Features } from "./features";
 import { Cmd, TimePeriod } from "./proto";
 
 describe("device", () => {
@@ -80,6 +81,39 @@ describe("device", () => {
     delete old.settingsState.sleep_screen;
     await d.open(old);
     expect(d.settings).not.toHaveProperty("sleep_screen");
+    await d.disconnect();
+  });
+
+  it("tells a device that takes it which computer this is, on connecting", async () => {
+    const fake = () => {
+      const f = new FakeDevice();
+      f.hello.features = { settings: ["brightness", "host_os"] } as Features;
+      f.settingsState.host_os = "other";
+      return f;
+    };
+    const d = new Device();
+    d.os = "mac";
+    const mac = fake();
+    await d.open(mac);
+    expect(mac.settingsChanges).toEqual([{ host_os: "mac" }]);
+    expect(d.settings?.host_os).toBe("mac");
+    await d.disconnect();
+
+    // already right, or the PC helper is connected and says itself: nothing written
+    const same = fake();
+    same.settingsState.host_os = "mac";
+    await d.open(same);
+    const helper = fake();
+    helper.host = { connected: true };
+    await d.disconnect();
+    await d.open(helper);
+    await d.disconnect();
+    expect([same.settingsChanges, helper.settingsChanges]).toEqual([[], []]);
+
+    // older software doesn't take it
+    const old = new FakeDevice();
+    await d.open(old);
+    expect(old.settingsChanges).toEqual([]);
     await d.disconnect();
   });
 

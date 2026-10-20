@@ -24,6 +24,13 @@ describe("explain", () => {
     );
   });
 
+  it("says when it's the Mac combo", () => {
+    expect(explain('page "main" key 2: mac_keys: hid-key needs keys').text).toBe("Key 3 on main: on a Mac: record a key combo.");
+    expect(explain('page "main" key 2: step 1: mac_keys: unknown key "x"').text).toBe(
+      "Key 3 on main: step 2: on a Mac: record a key combo.",
+    );
+  });
+
   it("names the key of an unknown field", () => {
     expect(explain("pages.main.keys.0.glow: unknown field; it needs newer device software")).toEqual({
       text: 'Key 1 on main: "glow" needs newer device software.',

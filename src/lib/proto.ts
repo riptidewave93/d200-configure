@@ -108,6 +108,7 @@ export interface Settings {
   // while the computer sleeps: the screen dimmed with a sleep mark, or off;
   // absent on older software and screens that can't dim
   sleep_screen?: "zzz" | "off";
+  host_os?: "mac" | "other" | ""; // the computer, "" if not known: Macs get keys' mac_keys
 }
 
 export interface ConfigInfo {
