@@ -1,8 +1,10 @@
-# Everything runs in containers (Node, and Go for the WebAssembly part), so any host with Docker
-# (and CI) builds the same way.
-# DOCKER= uses the host's Node and Go instead: make test DOCKER=
+# Everything runs in containers (Node, and TinyGo for the WebAssembly part), so any host with
+# Docker (and CI) builds the same way.
+# DOCKER= uses the host's Node, Go and TinyGo instead: make test DOCKER=
 NODE_IMAGE ?= node:24.22.0-bookworm-slim
 GO_IMAGE ?= golang:1.27.0-bookworm
+# TinyGo makes the WebAssembly part about a third smaller than Go does
+TINYGO_IMAGE ?= tinygo/tinygo:0.43.0
 DOCKER ?= docker
 # d200-deck's source: the WebAssembly part is built from its Go packages. Locally, a
 # checkout next to this one; in CI, DECK_VERSION fetched by make deck-source.
@@ -26,17 +28,20 @@ node_modules : package.json package-lock.json
 	$(RUN) $(NODE_IMAGE) npm ci --no-audit --no-fund
 	touch $@
 
-# Go, with d200-deck's source as part of a workspace (written by GOWORK_FILE)
-GO := $(RUN) $(if $(DOCKER),-v "$(abspath $(DECK_DIR))":/deck:ro$(COMMA)z -e GOCACHE=/repo/.cache/go-build \
-	-e GOMODCACHE=/repo/.cache/mod $(GO_IMAGE)) env GOWORK=$(if $(DOCKER),/repo,$(REPO_DIR))/.cache/go.work GOFLAGS=-buildvcs=false
+# Go and TinyGo, with d200-deck's source as part of a workspace (written by GOWORK_FILE)
+GO_RUN = $(RUN) $(if $(DOCKER),-v "$(abspath $(DECK_DIR))":/deck:ro$(COMMA)z -e GOCACHE=/repo/.cache/go-build \
+	-e GOMODCACHE=/repo/.cache/mod $(1)) env GOWORK=$(if $(DOCKER),/repo,$(REPO_DIR))/.cache/go.work GOFLAGS=-buildvcs=false
+GO := $(call GO_RUN,$(GO_IMAGE))
+# TinyGo can't run Go's newer JSON code yet (it lacks reflect.SliceOf), so it builds the older one
+TINYGO := $(call GO_RUN,$(TINYGO_IMAGE)) GOEXPERIMENT=nojsonv2
 GOWORK_FILE = mkdir -p .cache && printf 'go 1.27\n\nuse (\n\t../wasm\n\t%s\n)\n' $(if $(DOCKER),/deck,$(abspath $(DECK_DIR))) > .cache/go.work
 
 # d200-deck's config and drawing code as WebAssembly, and the Go fonts the page uses, into src/wasm
 wasm :
 	mkdir -p src/wasm
 	$(GOWORK_FILE)
-	$(GO) GOOS=js GOARCH=wasm sh -c 'go build -C wasm -trimpath -ldflags "-s -w" \
-		-o ../src/wasm/deck.wasm . && cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" src/wasm/ && \
+	$(TINYGO) sh -c 'cd wasm && tinygo build -target wasm -no-debug -opt=z -o ../src/wasm/deck.wasm . && \
+		cd .. && cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" src/wasm/ && \
 		fonts="$$(go list -C wasm -m -f "{{.Dir}}" golang.org/x/image)/font/gofont/ttfs" && \
 		install -m 644 "$$fonts/Go-Regular.ttf" "$$fonts/Go-Medium.ttf" src/wasm/'
 

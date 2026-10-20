@@ -2,7 +2,7 @@
 
 ## What you need
 
-- Docker, `make` and `git`. Node and Go run in containers, the same locally and in CI.
+- Docker, `make` and `git`. Node, Go and TinyGo run in containers, the same locally and in CI.
 - [d200-deck](https://github.com/riptidewave93/d200-deck) checked out next to this repo, at
   `../d200-deck`. Part of the site is built from its Go code (see [design.md](design.md#the-device-code-in-the-browser)).
   Use `DECK_DIR=<path>` to point elsewhere.
@@ -22,10 +22,10 @@ Repos/
 | `make check` | Type checks (TypeScript and Svelte) |
 | `make test` | Unit tests: the site's, and the Go ones in `wasm/fit` |
 | `make build` | The site, into `dist/` |
-| `make wasm` | Just the WebAssembly part and the Go fonts, into `src/wasm/` (the targets above run it) |
+| `make wasm` | Just the WebAssembly part (built with TinyGo) and the Go fonts, into `src/wasm/` (the targets above run it) |
 | `make clean` | Removes `dist/`, `node_modules/` and `.cache/` |
 
-`make <target> DOCKER=` uses the host's Node and Go instead of Docker.
+`make <target> DOCKER=` uses the host's Node, Go and TinyGo instead of Docker.
 
 ## Without a device
 

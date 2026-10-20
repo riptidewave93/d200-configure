@@ -190,7 +190,17 @@ on the page shown add up to more. Saving drops images no key shows, as it does i
 | `defaultConfig` | `deck.DefaultConfig` | The fake device |
 
 The alternative, rewriting these in TypeScript, would drift from the device over time. The cost is
-download size: about 10 MB, 3.2 MB compressed, cached by the browser after the first visit.
+download size: about 5.6 MB, 2.1 MB compressed, cached by the browser after the first visit.
+
+It's built with TinyGo rather than Go, which makes it about a third smaller (Go's build is 10.6 MB,
+3.3 MB compressed) and draws keys faster. Two things come with that:
+
+- TinyGo can't run Go's newer JSON code yet, so the build uses the older one (`GOEXPERIMENT=nojsonv2`).
+- An `int` is 32 bits, so times in milliseconds go through `float64` or `int64`.
+
+d200-deck builds its shared packages with TinyGo too, so a change there that TinyGo can't build is
+caught before the site picks it up. To go back to Go, build `wasm/` with `GOOS=js GOARCH=wasm go
+build` and copy Go's own `wasm_exec.js`.
 
 Keys redraw when their button changes. Images and fonts are handed to the drawing code only when
 they change, since a config can hold megabytes of them.

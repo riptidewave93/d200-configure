@@ -139,9 +139,9 @@ func renderKey(_ js.Value, args []js.Value) any {
 	}
 	data := js.Global().Get("Uint8ClampedArray").New(len(img.Pix))
 	js.CopyBytesToJS(data, img.Pix)
-	next := 0
+	next := 0.0 // a float: TinyGo's int is 32 bits
 	if t := renderer.Next(); !t.IsZero() {
-		next = int(t.UnixMilli())
+		next = float64(t.UnixMilli())
 	}
 	return map[string]any{"width": img.Rect.Dx(), "height": img.Rect.Dy(), "data": data, "next": next}
 }
