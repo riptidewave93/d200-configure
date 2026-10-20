@@ -95,6 +95,18 @@
         />
       </label>
     {/if}
+    {#if device.settings.sleep_screen !== undefined}
+      <label>
+        <span>Screen while the computer sleeps</span>
+        <select
+          value={device.settings.sleep_screen}
+          onchange={(e) => change({ sleep_screen: e.currentTarget.value as "zzz" | "off" })}
+        >
+          <option value="zzz">Dimmed, with zzZ</option>
+          <option value="off">Off</option>
+        </select>
+      </label>
+    {/if}
     {#if device.settings.usb_drive !== undefined}
       <label class="row check">
         <input

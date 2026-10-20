@@ -41,7 +41,7 @@ export class FakeDevice implements Transport {
     ipv4: "198.18.0.1",
   };
   host: HostInfo = { connected: false };
-  settingsState: Settings = { usb_drive: true, usb_net4: "", brightness: 100, brightness_min: 10 };
+  settingsState: Settings = { usb_drive: true, usb_net4: "", brightness: 100, brightness_min: 10, sleep_screen: "zzz" };
   settingsChanges: Settings[] = [];
   config: Uint8Array;
   identified: number[] = []; // -1: the whole screen
@@ -135,6 +135,8 @@ export class FakeDevice implements Transport {
           const why = await this.asked();
           if (why) return [Status.Failed, bytes(why)];
         }
+        if (change.sleep_screen !== undefined && !["zzz", "off"].includes(change.sleep_screen))
+          return [Status.Failed, bytes('sleep_screen must be "zzz" or "off"')];
         if (p.length > 0) this.settingsChanges.push(change);
         Object.assign(this.settingsState, change);
         const s = this.settingsState;

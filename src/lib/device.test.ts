@@ -63,6 +63,26 @@ describe("device", () => {
     await d.disconnect();
   });
 
+  it("sets what the screen does while the computer sleeps, where the device has it", async () => {
+    const fake = new FakeDevice();
+    const d = new Device();
+    await d.open(fake);
+    expect(d.settings?.sleep_screen).toBe("zzz");
+    await d.changeSettings({ sleep_screen: "off" });
+    expect(fake.settingsChanges).toEqual([{ sleep_screen: "off" }]);
+    expect(d.settings?.sleep_screen).toBe("off");
+    expect(d.state).toBe("ready"); // no reconnecting, unlike USB settings
+    await expect(d.changeSettings({ sleep_screen: "dark" as "off" })).rejects.toThrow('sleep_screen must be "zzz" or "off"');
+    await d.disconnect();
+
+    // older software, or a screen that can't dim, doesn't say: nothing to show
+    const old = new FakeDevice();
+    delete old.settingsState.sleep_screen;
+    await d.open(old);
+    expect(d.settings).not.toHaveProperty("sleep_screen");
+    await d.disconnect();
+  });
+
   it("says when a device's software is newer than the site", async () => {
     const newer = new FakeDevice();
     newer.hello.protocol = 5;
