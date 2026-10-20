@@ -46,6 +46,43 @@ describe("Doc", () => {
     expect(d.button(5)).toBeUndefined();
   });
 
+  it("moves keys, swapping, and copies them", () => {
+    const d = new Doc();
+    d.load(config());
+    const media = d.config!.pages.media.keys;
+    const main = d.config!.pages.main.keys;
+    main["3"] = { label: "Three", action: {} };
+    d.moveKey({ page: "main", key: 0 }, { page: "main", key: 3 }); // swap on a page
+    expect([main["0"].label, main["3"].label]).toEqual(["Three", "Media"]);
+    d.moveKey({ page: "main", key: 0 }, { page: "media", key: 5 }); // to an empty key elsewhere
+    expect(main["0"]).toBeUndefined();
+    expect(media["5"].label).toBe("Three");
+    d.moveKey({ page: "media", key: 5 }, { page: "main", key: 1 }, true); // a copy
+    expect(main["1"].label).toBe("Three");
+    main["1"].label = "Changed";
+    expect(media["5"].label).toBe("Three"); // not the same object
+  });
+
+  it("copies, cuts and pastes keys across pages", () => {
+    const d = new Doc();
+    d.load(config());
+    d.key = 0;
+    d.copyKey();
+    d.openPage("media");
+    d.key = 2;
+    d.pasteKey();
+    expect(d.config!.pages.media.keys["2"].label).toBe("Media");
+    expect(d.config!.pages.main.keys["0"].label).toBe("Media"); // still there
+    d.key = 2;
+    d.copyKey(true);
+    d.openPage("main");
+    d.key = 4;
+    d.pasteKey();
+    expect(d.config!.pages.main.keys["4"].label).toBe("Media");
+    expect(d.config!.pages.media.keys["2"]).toBeUndefined(); // moved
+    expect(d.clip).toBeNull();
+  });
+
   it("lists the home page first", () => {
     const d = new Doc();
     d.load({ ...config(), home: "media" });

@@ -5,6 +5,12 @@ import type { Deck } from "./deck";
 import { pageTree, pathTo, type PageTree } from "./pages";
 import { usedImages } from "./pictures";
 
+// A key on a page.
+export interface KeyRef {
+  page: string;
+  key: number;
+}
+
 export class Doc {
   config = $state<Config | null>(null);
   // the config as last loaded or saved, to tell whether it changed
@@ -77,6 +83,40 @@ export class Doc {
     const keys = this.c.pages[this.page].keys;
     if (b) keys[key] = b;
     else delete keys[key];
+  }
+
+  // moveKey moves a key's button to another key, on this page or another;
+  // a button already there swaps places with it, so nothing is lost. With
+  // copy, the target gets a copy instead, replacing what was there.
+  moveKey(from: KeyRef, to: KeyRef, copy = false) {
+    const src = this.c.pages[from.page]?.keys;
+    const dst = this.c.pages[to.page]?.keys;
+    const b = src?.[from.key];
+    if (!src || !dst || !b || (from.page === to.page && from.key === to.key)) return;
+    if (copy) {
+      dst[to.key] = structuredClone($state.snapshot(b)) as Button;
+      return;
+    }
+    const there = dst[to.key];
+    dst[to.key] = b;
+    if (there) src[from.key] = there;
+    else delete src[from.key];
+  }
+
+  // the key copied or cut, to paste on another
+  clip = $state<{ from: KeyRef; cut: boolean } | null>(null);
+
+  copyKey(cut = false) {
+    if (this.key !== null && this.button(this.key)) this.clip = { from: { page: this.page, key: this.key }, cut };
+  }
+
+  // pasteKey puts the copied or cut key on the selected one: a cut one moves
+  // (swapping), a copied one is copied.
+  pasteKey() {
+    const c = this.clip;
+    if (!c || this.key === null || !this.config?.pages[c.from.page]?.keys[c.from.key]) return;
+    this.moveKey(c.from, { page: this.page, key: this.key }, !c.cut);
+    if (c.cut) this.clip = null;
   }
 
   // pageNameError says what's wrong with a new page name, or "".

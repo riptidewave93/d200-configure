@@ -12,6 +12,12 @@
   let button = $derived(doc.button(key));
   let win = $derived(model().windows[key]);
   let hasOn = $derived(button?.action.type === "app");
+  let clip = $derived(doc.clip);
+
+  function paste() {
+    if (button && !confirm(`Replace key ${key + 1} with the ${clip?.cut ? "cut" : "copied"} key?`)) return;
+    doc.pasteKey();
+  }
   const types = actionTypes.map((a) => a.type);
 </script>
 
@@ -27,7 +33,14 @@
   {#if !button}
     <div class="blank">
       <p class="muted">Nothing on this key yet.</p>
-      <button onclick={() => doc.setButton(key, { action: {} })}>Set up this key</button>
+      <div class="row">
+        <button onclick={() => doc.setButton(key, { action: {} })}>Set up this key</button>
+        {#if clip}
+          <button class="plain" onclick={paste}
+            >Paste key {clip.from.key + 1}{clip.from.page !== doc.page ? ` from ${clip.from.page}` : ""}</button
+          >
+        {/if}
+      </div>
     </div>
   {:else}
     <div class="previews">

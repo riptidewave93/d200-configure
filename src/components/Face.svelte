@@ -25,6 +25,37 @@
     else if (a?.type === "home" && doc.config) doc.openPage(doc.config.home);
   }
 
+  // Dragging a key onto another moves it there, swapping the two; with Alt
+  // (Option) or Ctrl held, it copies it.
+  const dragType = "application/x-d200-key";
+  let target = $state<number | null>(null);
+  const copying = (e: DragEvent) => e.altKey || e.ctrlKey;
+
+  function dragStart(e: DragEvent, i: number) {
+    if (!doc || !e.dataTransfer) return;
+    e.dataTransfer.setData(dragType, String(i));
+    e.dataTransfer.effectAllowed = "copyMove";
+    doc.key = i;
+  }
+
+  function dragOver(e: DragEvent, i: number) {
+    if (!doc || !e.dataTransfer?.types.includes(dragType)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = copying(e) ? "copy" : "move";
+    target = i;
+  }
+
+  function drop(e: DragEvent, i: number) {
+    target = null;
+    if (!doc || !e.dataTransfer?.types.includes(dragType)) return;
+    e.preventDefault();
+    const from = Number(e.dataTransfer.getData(dragType));
+    const copy = copying(e);
+    if (copy && doc.button(i) && !confirm(`Replace key ${i + 1} with a copy of key ${from + 1}?`)) return;
+    doc.moveKey({ page: doc.page, key: from }, { page: doc.page, key: i }, copy);
+    doc.key = i;
+  }
+
   // percentages of a box, so the face scales with the page
   const pct = (v: number, of: number) => `${(v / of) * 100}%`;
   const radius = (r: number, w: number, h: number) => `${pct(r, w)} / ${pct(r, h)}`;
@@ -43,7 +74,14 @@
     <button
       class="cap"
       class:selected={doc?.key === i}
+      class:target={target === i}
       class:down={down.includes(i)}
+      draggable={!!doc && !!button}
+      ondragstart={(e) => dragStart(e, i)}
+      ondragover={(e) => dragOver(e, i)}
+      ondragleave={() => target === i && (target = null)}
+      ondrop={(e) => drop(e, i)}
+      ondragend={() => (target = null)}
       disabled={!doc}
       style:left={pct(k.cap.x, f.width)}
       style:top={pct(k.cap.y, f.height)}
@@ -123,6 +161,11 @@
   }
   .cap.selected {
     outline: 3px solid var(--accent);
+    outline-offset: 4px;
+    overflow: visible;
+  }
+  .cap.target {
+    outline: 3px dashed var(--accent);
     outline-offset: 4px;
     overflow: visible;
   }

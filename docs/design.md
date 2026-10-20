@@ -124,6 +124,9 @@ After a re-plug the site compares revs and reads the config again only if it cha
 - Double-clicking a key that opens a page, goes back or goes home does that on the page, as
   pressing it on the device would.
 - Key combos can be typed (`ctrl + shift + m`) or recorded by pressing them.
+- **Moving keys:** dragging a key onto another swaps the two; with Alt (Option) or Ctrl held, it
+  copies the key instead. Ctrl+C, Ctrl+X and Ctrl+V (Cmd on a Mac) copy, cut and paste the selected
+  key, across pages too; an empty key also offers **Paste**. Replacing a key asks first.
 - **Files:** **Open file** and **Save file** read and write `config.json`, for backups and for
   editing without a device. A file opened while connected counts as unsaved until saved to the device.
 
@@ -224,4 +227,3 @@ The page says "device", not "D200", so a new model needs no wording changes.
 ## Not done yet
 
 - Adding custom fonts (they're kept and drawn if a config already has them).
-- Moving or copying keys, e.g. by dragging.

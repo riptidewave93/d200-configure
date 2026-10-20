@@ -53,10 +53,19 @@
   }
 
   function escape(e: KeyboardEvent) {
+    const t = e.target as HTMLElement;
+    const typing = !!t.closest("input, select, textarea");
+    // Ctrl+C, Ctrl+X, Ctrl+V copy, cut and paste the selected key
+    if ((e.ctrlKey || e.metaKey) && !typing && doc.key !== null && !getSelection()?.toString()) {
+      const k = e.key.toLowerCase();
+      if (k === "c" || k === "x") doc.copyKey(k === "x");
+      if (k === "v" && (!doc.button(doc.key) || confirm(`Replace key ${doc.key + 1} with the ${doc.clip?.cut ? "cut" : "copied"} key?`)))
+        doc.pasteKey();
+      return;
+    }
     if (e.key !== "Escape") return;
     showDevice = fileMenu = false;
-    const t = e.target as HTMLElement;
-    if (!t.closest("input, select, textarea")) doc.key = null;
+    if (!typing) doc.key = null;
   }
   // a click outside a menu closes it
   function outside(e: PointerEvent) {
@@ -341,7 +350,8 @@
         {#if doc.key === null}
           <p class="muted hint">
             {#if Object.keys(doc.config.pages[doc.page]?.keys ?? {}).length}
-              Pick a key to change it{connected ? ", or press it on the device" : ""}.
+              Pick a key to change it{connected ? ", or press it on the device" : ""}. Drag keys to move them;
+              hold Alt to copy.
             {:else}
               Nothing here yet. Pick a key to set it up.
             {/if}
