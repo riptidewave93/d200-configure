@@ -118,8 +118,9 @@
     top: 100%;
     margin-top: 4px;
   }
+  /* room for the caption under the previews, as much again as without */
   .previews:has(figcaption) {
-    margin-bottom: 22px;
+    margin-bottom: 44px;
   }
   .on {
     margin-top: 18px;

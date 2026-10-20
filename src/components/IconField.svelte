@@ -197,7 +197,7 @@
   .picker {
     border: 1px solid var(--line);
     border-radius: 10px;
-    padding: 10px;
+    padding: 12px;
     margin: -4px 0 14px;
   }
   .tabs {

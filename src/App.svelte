@@ -276,6 +276,7 @@
     {#if connected}
       <button
         class="status on"
+        aria-label={status}
         onclick={() => (showDevice = !showDevice)}
         aria-expanded={showDevice}
         aria-haspopup="dialog"
@@ -476,7 +477,7 @@
   }
   .popover.device {
     width: min(380px, calc(100vw - 32px));
-    padding: 18px 20px 10px;
+    padding: 18px 20px 14px;
   }
   .popover.menu {
     display: flex;

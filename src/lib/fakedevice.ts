@@ -34,7 +34,7 @@ export class FakeDevice implements Transport {
   onReport: ((report: Uint8Array) => void) | null = null;
   hello: Hello = {
     protocol: VersionLarge,
-    firmware: "fake",
+    firmware: "0123456789abcdef0123456789abcdef01234567",
     os: { name: "fake" },
     serial: "0123456789abcdef",
     keys: 14,

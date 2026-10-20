@@ -366,8 +366,6 @@
     padding-top: 8px;
   }
   summary {
-    color: var(--muted);
-    cursor: pointer;
     margin-bottom: 8px;
   }
 </style>

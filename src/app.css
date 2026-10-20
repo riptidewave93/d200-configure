@@ -159,6 +159,11 @@ button.quiet {
   font-weight: 400;
   padding: 7px 6px;
 }
+/* a text button starting a line lines up with the text around it */
+.row > button:is(.quiet, .plain):first-child,
+details > button.plain {
+  margin-left: -6px;
+}
 button.quiet:hover:not(:disabled) {
   color: var(--fg);
 }
@@ -197,7 +202,7 @@ details > summary {
   color: var(--muted);
   cursor: pointer;
   margin-bottom: 10px;
-  list-style-position: outside;
+  list-style-position: inside;
 }
 @media (prefers-reduced-motion: reduce) {
   * {

@@ -45,6 +45,13 @@
   }
 
   let h = $derived(device.hello);
+  // a commit hash is shown short; copying it copies the whole
+  let software = $derived(h?.firmware ?? "");
+  let softwareShort = $derived(/^[0-9a-f]{12,}$/.test(software) ? software.slice(0, 7) : software);
+  function copySoftware(e: ClipboardEvent) {
+    e.clipboardData?.setData("text/plain", software);
+    e.preventDefault();
+  }
   let host = $derived(device.host);
 </script>
 
@@ -56,7 +63,7 @@
   </div>
   <dl>
     <dt>Software</dt>
-    <dd>{h?.firmware}</dd>
+    <dd title={software} oncopy={copySoftware}>{softwareShort}</dd>
     {#if h?.os.version}<dt>System</dt>
       <dd>{h.os.version}{h.os.flavour ? ` (${h.os.flavour})` : ""}</dd>{/if}
     <dt>PC helper</dt>
@@ -132,7 +139,7 @@
   dl {
     font-size: 14px;
     display: grid;
-    grid-template-columns: max-content 1fr;
+    grid-template-columns: max-content minmax(0, 1fr);
     gap: 4px 16px;
     margin: 0 0 16px;
   }
@@ -141,6 +148,8 @@
   }
   dd {
     margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .check {
     flex-wrap: nowrap;
