@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { load } from "./deck";
-import { face, modelFor, models } from "./models";
+import { face, modelFor, models, nextKey } from "./models";
 
 describe("models", () => {
   it("has the D200's key windows as the device draws them", async () => {
@@ -25,5 +25,15 @@ describe("models", () => {
     expect(f.width - (wide.x + wide.w)).toBe(181);
     expect(f.height - (bottomLeft.y + bottomLeft.h)).toBe(99);
     expect(f.keys[0].window).toEqual({ x: 5, y: 5, w: 196, h: 196 });
+  });
+
+  it("finds the key next to another, for arrow keys", () => {
+    const { keys } = face(models[0]);
+    expect(nextKey(keys, 0, "right")).toBe(1);
+    expect(nextKey(keys, 0, "left")).toBe(0);
+    expect(nextKey(keys, 4, "down")).toBe(9);
+    expect(nextKey(keys, 12, "right")).toBe(13);
+    expect(nextKey(keys, 9, "down")).toBe(13);
+    expect([8, 9]).toContain(nextKey(keys, 13, "up"));
   });
 });

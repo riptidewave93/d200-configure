@@ -21,6 +21,13 @@
   const { deck, doc } = app();
   // enough to scan at a glance; searching narrows the rest
   const shown = 120;
+  // what the picker opens on, before a search
+  const common = [
+    "play-pause", "play_arrow", "pause", "stop", "next", "prev", "volume_up", "volume_down", "mute", "mic",
+    "mic_off", "headphones", "music_note", "globe", "home", "back", "refresh", "search", "folder", "mail",
+    "chat", "code", "terminal", "keyboard", "settings", "power", "bedtime", "lock", "lightbulb", "star",
+    "timer", "videocam", "screen_share", "fiber_manual_record", "discord", "obs",
+  ];
 
   let open = $state(false);
   let tab = $state<"icons" | "emoji" | "pictures">("icons");
@@ -39,7 +46,7 @@
   let iconMatches = $derived.by(() => {
     const all = deck()?.icons ?? [];
     const q = search.trim().toLowerCase().replace(/[\s-]+/g, "_");
-    if (!q) return all;
+    if (!q) return common.filter((n) => deck()?.hasIcon(n));
     // exact match first, then names that start with it, then the rest
     const rank = (n: string) => (n === q ? 0 : n.startsWith(q) ? 1 : 2);
     return all
@@ -80,18 +87,20 @@
 <label>
   <span>Icon</span>
   <div class="row">
-    <span class="current" aria-hidden="true">
-      {#if emoji}<span class="emoji">{emoji}</span>
-      {:else if picture}<img src={dataURL(picture)} alt="" />
-      {:else if value && !unknown}<Icon name={value} />{/if}
-    </span>
+    {#if emoji || picture || (value && !unknown)}
+      <span class="current" aria-hidden="true">
+        {#if emoji}<span class="emoji">{emoji}</span>
+        {:else if picture}<img src={dataURL(picture)} alt="" />
+        {:else}<Icon name={value!} />{/if}
+      </span>
+    {/if}
     {#if emoji || picture}
       <span class="grow emoji-name">{emoji ? "Emoji" : value}</span>
       <button type="button" class="quiet" onclick={() => onchange("")}>Remove</button>
     {:else}
       <input
         class="grow"
-        placeholder="None"
+        placeholder="e.g. home"
         value={value ?? ""}
         onchange={(e) => onchange(e.currentTarget.value.trim())}
         aria-label="Icon name"
@@ -166,6 +175,7 @@
       {#if tab === "pictures"}A PNG, JPEG or GIF, made smaller to fit if it must. GIFs move on the device.
       {:else if emojiError && tab === "emoji"}{emojiError}
       {:else if tab === "emoji" && !allEmoji.length}Loading…
+      {:else if tab === "icons" && !search.trim()}Common icons. Search to find more.
       {:else if matches > shown}{shown} of {matches}. Search to find more.
       {:else if !matches}Nothing matches.
       {:else if tab === "emoji"}Emoji are saved as small pictures, drawn by this computer.{/if}

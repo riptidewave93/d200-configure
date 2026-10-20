@@ -31,7 +31,7 @@
 
   function remove() {
     const n = doc.keysOpening(doc.page).length;
-    const also = n ? ` The ${n === 1 ? "key" : `${n} keys`} that open it will be cleared.` : "";
+    const also = n ? (n === 1 ? " The key that opens it will be cleared." : ` The ${n} keys that open it will be cleared.`) : "";
     if (confirm(`Delete the page "${doc.page}"?${also}`)) doc.deletePage(doc.page);
   }
 </script>
@@ -49,7 +49,7 @@
       }}
     />
   </label>
-  {#if error && name}<p class="bad small">{error}</p>{/if}
+  {#if error}<p class="bad small">{error}</p>{/if}
 
   <h3>Opened by</h3>
   {#if home}
@@ -70,7 +70,7 @@
       {/each}
     </ul>
   {:else if !home}
-    <p class="muted">No key opens this page yet.</p>
+    <p class="muted">Set a key to Open page to reach it.</p>
   {/if}
 
   {#if !home}

@@ -87,3 +87,24 @@ export function face(m: Model): Face {
     })),
   };
 }
+
+export type Direction = "left" | "right" | "up" | "down";
+
+// nextKey is the key next to key i in a direction, by where the keys sit,
+// or i when there's none.
+export function nextKey(keys: { cap: Rect }[], i: number, dir: Direction): number {
+  const mid = (r: Rect) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
+  const from = mid(keys[i].cap);
+  let best = i;
+  let bestCost = Infinity;
+  keys.forEach((k, j) => {
+    const to = mid(k.cap);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const [ahead, aside] = dir === "left" ? [-dx, dy] : dir === "right" ? [dx, dy] : dir === "up" ? [-dy, dx] : [dy, dx];
+    if (j === i || ahead <= 1) return;
+    const cost = ahead + 2 * Math.abs(aside);
+    if (cost < bestCost) [best, bestCost] = [j, cost];
+  });
+  return best;
+}

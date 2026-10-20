@@ -30,6 +30,24 @@ export const actionTypes: ActionType[] = [
 export const fallbackTypes = ["hid-key", "hid-consumer", "hid-system", "type-text", "macro"];
 export const stepTypes = ["hid-key", "hid-consumer", "hid-system", "type-text", "delay"];
 
+// newAction is a new action of type t, ready to save where it can be:
+// the first app action, Play / pause, Sleep.
+export function newAction(t: string, apps: Record<string, string[]> = {}, from: Action = {}): Action {
+  const a: Action = t ? { type: t } : {};
+  if (t === "app") {
+    a.app = Object.keys(apps)[0] ?? "discord";
+    a.op = apps[a.app]?.[0] ?? "mute";
+  }
+  if (t === "hid-consumer") a.usage = "play-pause";
+  if (t === "hid-system") a.system = "sleep";
+  if (t === "hid-key") a.keys = [];
+  if (t === "macro") a.steps = [];
+  if (t === "http") a.method = "POST";
+  if (t === "delay") a.ms = 100;
+  if (isPC(t) && from.fallback) a.fallback = from.fallback;
+  return a;
+}
+
 export const typeName = (t = "") =>
   t === "delay" ? "Wait" : (actionTypes.find((a) => a.type === t)?.name ?? t);
 

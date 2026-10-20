@@ -7,6 +7,7 @@ import {
   addFontFile,
   catalogFonts,
   fontID,
+  fontName,
   fontText,
   growFonts,
   toBase64,
@@ -119,5 +120,15 @@ describe("fonts", () => {
     expect([id, cut]).toEqual(["go-regular-2", false]);
     expect(c.fonts![id]).toBe(toBase64(goRegular));
     await expect(addFontFile(d, c, new File(["nope"], "x.ttf"), "")).rejects.toThrow();
+  });
+});
+
+describe("font names", () => {
+  it("names fonts for people", () => {
+    expect(fontName("go-bold")).toBe("Go Bold");
+    expect(fontName("go-mono-bold-italic")).toBe("Go Mono Bold Italic");
+    expect(fontName("go-smallcaps")).toBe("Go Small Caps");
+    expect(fontName("inter-bold")).toBe("Inter Bold");
+    expect(fontName("brand")).toBe("brand");
   });
 });

@@ -1,7 +1,7 @@
 <!-- The device as it looks: its body and key caps, with each key's picture showing through. -->
 <script lang="ts">
   import type { Doc } from "../lib/doc.svelte";
-  import { face, type Model } from "../lib/models";
+  import { face, nextKey, type Direction, type Model } from "../lib/models";
   import KeyView from "./KeyView.svelte";
 
   let {
@@ -56,6 +56,18 @@
     doc.key = i;
   }
 
+  // Arrow keys move between keys, as they sit on the device.
+  const arrows: Record<string, Direction> = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
+  let caps: HTMLButtonElement[] = $state([]);
+  function arrow(e: KeyboardEvent, i: number) {
+    const dir = arrows[e.key];
+    if (!doc || !dir) return;
+    e.preventDefault();
+    const n = nextKey(f.keys, i, dir);
+    doc.key = n;
+    caps[n]?.focus();
+  }
+
   // percentages of a box, so the face scales with the page
   const pct = (v: number, of: number) => `${(v / of) * 100}%`;
   const radius = (r: number, w: number, h: number) => `${pct(r, w)} / ${pct(r, h)}`;
@@ -88,7 +100,9 @@
       style:width={pct(k.cap.w, f.width)}
       style:height={pct(k.cap.h, f.height)}
       style:border-radius={radius(model.cap.radius, k.cap.w, k.cap.h)}
+      bind:this={caps[i]}
       onclick={() => doc && (doc.key = i)}
+      onkeydown={(e) => arrow(e, i)}
       ondblclick={() => follow(i)}
       aria-label={button?.label ? `Key ${i + 1}: ${button.label}` : `Key ${i + 1}`}
       aria-pressed={doc?.key === i}

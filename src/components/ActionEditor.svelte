@@ -10,6 +10,7 @@
     isPC,
     joinCommand,
     maxSongCycle,
+    newAction,
     opArgs,
     opName,
     splitCommand,
@@ -68,16 +69,7 @@
   let newPageError = $derived(newPage === null ? "" : doc.pageNameError(newPage));
 
   function setType(t: string) {
-    const next: Action = t ? { type: t } : {};
-    if (t === "app") {
-      next.app = Object.keys(apps)[0] ?? "discord";
-      next.op = apps[next.app]?.[0] ?? "mute";
-    }
-    if (t === "macro") next.steps = [];
-    if (t === "http") next.method = "POST";
-    if (t === "delay") next.ms = 100;
-    if (isPC(t) && action.fallback) next.fallback = action.fallback;
-    action = next;
+    action = newAction(t, apps, action);
   }
 
   // another app: its first op, and none of the last one's args
@@ -179,7 +171,7 @@
     <input type="number" min="1" max="60000" bind:value={action.ms} />
   </label>
 {:else if action.type === "macro"}
-  <ol class="steps">
+  <ul class="steps">
     {#each action.steps ?? [] as _, i (i)}
       <li>
         <ActionEditor bind:action={action.steps![i]} types={stepTypes} label="Step {i + 1}" />
@@ -192,7 +184,7 @@
         </div>
       </li>
     {/each}
-  </ol>
+  </ul>
   <button type="button" class="plain" onclick={() => (action.steps ??= []).push({ type: "hid-key", keys: [] })}
     >+ Step</button
   >
@@ -242,13 +234,13 @@
 {:else if action.type === "open-url"}
   <label>
     <span>Web address</span>
-    <input type="url" placeholder="https://" bind:value={() => action.url ?? "", (v) => set(action, "url", v)} />
+    <input type="url" placeholder="e.g. https://example.com" bind:value={() => action.url ?? "", (v) => set(action, "url", v)} />
   </label>
 {:else if action.type === "launch"}
   <label>
     <span>Program and arguments</span>
     <input
-      placeholder="code ~/notes"
+      placeholder="e.g. code ~/notes"
       value={joinCommand(action.command)}
       onchange={(e) => set(action, "command", splitCommand(e.currentTarget.value))}
     />
@@ -261,7 +253,7 @@
     <input
       class="grow"
       type="url"
-      placeholder="https://"
+      placeholder="e.g. https://example.com/hook"
       aria-label="Web address"
       bind:value={() => action.url ?? "", (v) => set(action, "url", v)}
     />
@@ -270,7 +262,7 @@
     <span>Headers, one per line</span>
     <textarea
       rows="2"
-      placeholder="Content-Type: application/json"
+      placeholder="e.g. Content-Type: application/json"
       value={headersText(action.headers)}
       onchange={(e) => set(action, "headers", parseHeaders(e.currentTarget.value))}
     ></textarea>
@@ -307,12 +299,11 @@
     </label>
     {#if action.args?.show === "both"}
       <label>
-        <span>Seconds each</span>
+        <span>Seconds each (default {defaultSongCycle})</span>
         <input
           type="number"
           min="1"
           max={f?.limits.song_cycle ?? maxSongCycle}
-          placeholder={String(defaultSongCycle)}
           value={action.args?.cycle ?? ""}
           onchange={(e) => setArg("cycle", e.currentTarget.value, true)}
         />
@@ -351,7 +342,8 @@
 
 <style>
   .steps {
-    padding-left: 20px;
+    list-style: none;
+    padding-left: 0;
     margin: 0 0 8px;
   }
   .steps li {

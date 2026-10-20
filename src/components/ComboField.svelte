@@ -40,7 +40,7 @@
     onkeydown={keydown}
     onkeyup={keyup}
     onblur={() => (recording = false)}
-    placeholder={recording ? "Press the keys" : "ctrl + shift + m"}
+    placeholder={recording ? "Press the keys" : "e.g. ctrl + shift + m"}
     readonly={recording}
     aria-label="Key combo"
   />

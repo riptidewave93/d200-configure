@@ -124,7 +124,7 @@ export class Doc {
 
   // pageNameError says what's wrong with a new page name, or "".
   pageNameError(name: string): string {
-    if (!name.trim()) return "Give the page a name.";
+    if (!name.trim()) return "Give it a name.";
     if (name in this.c.pages) return "There's a page with that name.";
     return "";
   }

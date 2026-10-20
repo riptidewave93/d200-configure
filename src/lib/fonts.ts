@@ -19,7 +19,17 @@ export interface CatalogFont {
 
 export const catalogFonts: CatalogFont[] = catalog;
 export const catalogFont = (id: string) => catalogFonts.find((f) => f.id === id);
-export const fontName = (id: string) => catalogFont(id)?.name ?? id;
+// fontName is a font's name for people: "Inter Bold", "Go Mono Italic".
+export function fontName(id: string): string {
+  const c = catalogFont(id);
+  if (c) return c.name;
+  if (!id.startsWith("go-")) return id;
+  return id
+    .replace("smallcaps", "small-caps")
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 // The whole fonts that cut-down fonts in the config come from, by ID.
 const sources = new Map<string, Uint8Array>();

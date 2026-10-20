@@ -233,7 +233,7 @@
     <select value={look.font ?? ""} onchange={pickFont} disabled={fontWorking}>
       <option value="">Default</option>
       <optgroup label="On the device">
-        {#each builtinFonts as name (name)}<option value={name}>{name}</option>{/each}
+        {#each builtinFonts as name (name)}<option value={name}>{fontName(name)}</option>{/each}
       </optgroup>
       {#if customFonts.length}
         <optgroup label="In this config">

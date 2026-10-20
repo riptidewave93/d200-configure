@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { argNames, describe as describeAction, joinCommand, splitCommand, typeTextProblem } from "./actions";
+import { argNames, describe as describeAction, joinCommand, newAction, splitCommand, typeTextProblem } from "./actions";
 
 describe("commands", () => {
   it("splits on spaces, keeping quoted ones", () => {
@@ -9,6 +9,21 @@ describe("commands", () => {
   it("joins back what it split", () => {
     const words = ["code", "~/my notes", "-n", 'say "hi"'];
     expect(splitCommand(joinCommand(words))).toEqual(words);
+  });
+});
+
+describe("new actions", () => {
+  it("start ready to save where they can", () => {
+    expect(newAction("hid-consumer")).toEqual({ type: "hid-consumer", usage: "play-pause" });
+    expect(newAction("hid-system")).toEqual({ type: "hid-system", system: "sleep" });
+    expect(newAction("app", { obs: ["scene"] })).toEqual({ type: "app", app: "obs", op: "scene" });
+    expect(newAction("")).toEqual({});
+  });
+
+  it("keep a fallback between PC actions", () => {
+    const fallback = { type: "hid-key", keys: ["f13"] };
+    expect(newAction("open-url", {}, { type: "launch", fallback }).fallback).toBe(fallback);
+    expect(newAction("hid-key", {}, { type: "launch", fallback }).fallback).toBeUndefined();
   });
 });
 

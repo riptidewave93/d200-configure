@@ -35,7 +35,7 @@
   let showDevice = $state(false);
   let fileInput: HTMLInputElement;
 
-  const ruleURL = "https://github.com/riptidewave93/d200-deck/blob/main/contrib/linux/70-d200-deck.rules";
+  const helperURL = "https://github.com/riptidewave93/d200-deck/blob/main/docs/install.md";
   const warning = browserWarning();
   // the warning can be put away, and stays away in this browser
   const dismissedKey = "browser-warning-dismissed";
@@ -375,8 +375,8 @@
         </div>
         {#if linux}
           <p class="muted small note">
-            On Linux the browser needs a <a href={ruleURL} target="_blank" rel="noreferrer">udev rule</a> to open the
-            device. The PC helper installs it.
+            On Linux, <a href={helperURL} target="_blank" rel="noreferrer">install the PC helper</a> first so the browser
+            can open the device.
           </p>
         {/if}
       {:else}

@@ -63,7 +63,12 @@
   </div>
   <dl>
     <dt>Software</dt>
-    <dd title={software} oncopy={copySoftware}>{softwareShort}</dd>
+    <dd>
+      <span title={software} oncopy={copySoftware}>{softwareShort}</span>
+      {#if device.pageURL("/update")}<a class="update" href={device.pageURL("/update")} target="_blank" rel="noreferrer"
+          >Update…</a
+        >{/if}
+    </dd>
     {#if h?.os.version}<dt>System</dt>
       <dd>{h.os.version}{h.os.flavour ? ` (${h.os.flavour})` : ""}</dd>{/if}
     <dt>PC helper</dt>
@@ -110,7 +115,7 @@
         <label>
           <span>USB network address, if the default clashes with another network</span>
           <div class="row">
-            <input class="grow" bind:value={address} placeholder="Default" />
+            <input class="grow" bind:value={address} placeholder="e.g. 10.77.0.4" />
             <button disabled={!addressOK || address === (device.settings.usb_net4 ?? "")}>Change</button>
           </div>
         </label>
@@ -122,10 +127,7 @@
   {#if error}<p class="bad">{error}</p>{/if}
 
   {#if device.pageURL("/")}
-    <div class="row links">
-      <a class="button" href={device.pageURL("/update")} target="_blank" rel="noreferrer">Update</a>
-      <a href={device.pageURL("/debug")} target="_blank" rel="noreferrer">Debug info</a>
-    </div>
+    <p class="small debug"><a href={device.pageURL("/debug")} target="_blank" rel="noreferrer">Debug info</a></p>
   {/if}
 </div>
 
@@ -154,8 +156,10 @@
   .check {
     flex-wrap: nowrap;
   }
-  .links {
-    margin-top: 12px;
-    gap: 16px;
+  .update {
+    margin-left: 10px;
+  }
+  .debug {
+    margin: 12px 0 0;
   }
 </style>
