@@ -15,6 +15,8 @@
 //	newPage(): the preview shows another page (render.NewPage: each page has its own
 //	  animation budget)
 //	missingGlyphs(buttonJSON) -> the label characters its font lacks, as a string
+//	builtinFallback(actionJSON) -> JSON: what the device does instead while the PC helper
+//	  can't run the action (e.g. Discord mute presses Ctrl+Shift+M), or null
 //	layout -> JSON: {width, height, keys: [{x, y, w, h}]}, the key windows on the screen
 //	iconNames -> JSON: every icon in the catalog, sorted
 //	iconPath(name) -> {d, viewBox}: a catalog icon as SVG path data (nonzero fill), or null
@@ -50,6 +52,14 @@ func main() {
 		"imageInfo":     js.FuncOf(imageInfo),
 		"newPage":       js.FuncOf(func(js.Value, []js.Value) any { renderer.NewPage(); return nil }),
 		"missingGlyphs": js.FuncOf(missingGlyphs),
+		"builtinFallback": js.FuncOf(func(_ js.Value, args []js.Value) any {
+			var a deck.Action
+			if len(args) != 1 || json.Unmarshal([]byte(args[0].String()), &a) != nil {
+				return "null"
+			}
+			a.Fallback = nil // only the built-in one
+			return marshal(a.FallbackAction())
+		}),
 		"layout":        layout(),
 		"iconNames":     marshal(icons.Names()),
 		"iconPath":      js.FuncOf(iconPath),

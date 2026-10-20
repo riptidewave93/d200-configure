@@ -16,6 +16,13 @@ describe("deck (WebAssembly)", () => {
     expect(d.validate(c)).toBe('page "main" key 0: page "nope" does not exist');
   });
 
+  it("knows what app keys do by themselves without the PC helper", async () => {
+    const d = await deck();
+    expect(d.builtinFallback({ type: "app", app: "discord", op: "mute" })).toEqual({ type: "hid-key", keys: ["ctrl", "shift", "m"] });
+    expect(d.builtinFallback({ type: "app", app: "media", op: "next" })).toEqual({ type: "hid-consumer", usage: "next-track" });
+    expect(d.builtinFallback({ type: "app", app: "obs", op: "scene" })).toBeNull();
+  });
+
   it("draws keys at their size", async () => {
     const d = await deck();
     expect(d.layout.keys).toHaveLength(14);

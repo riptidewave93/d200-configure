@@ -3,16 +3,17 @@
   import type { Action } from "../lib/config";
   import {
     appNames,
+    describe,
     fallbackTypes,
     isPC,
     joinCommand,
-    mediaNeedsHelper,
     opArgs,
     opName,
     splitCommand,
     stepTypes,
     systemNames,
     typeName,
+    typeTextProblem,
     usageNames,
   } from "../lib/actions";
   import { app } from "../lib/context";
@@ -32,6 +33,18 @@
   let apps = $derived(names?.apps ?? {});
   let args = $derived(opArgs[`${action.app}.${action.op}`] ?? []);
   let hostApp = $derived(device.host?.apps?.find((a) => a.name === action.app));
+  // what the device does by itself while the PC helper can't, e.g. Discord
+  // mute presses Ctrl+Shift+M
+  let builtin = $derived(
+    action.type === "app" ? (deck()?.builtinFallback({ type: "app", app: action.app, op: action.op }) ?? null) : null,
+  );
+  // the PC helper can't run it now
+  let helperMissing = $derived(
+    device.state === "ready" &&
+      (!device.host?.connected || (action.type === "app" && !hostApp?.status)),
+  );
+  // a media key by its usage number, for one without a name
+  let usageNumber = $derived(typeof action.usage === "number");
 
   // a new page being named, from the page list's "New page…"
   const NEW = "\u0000new";
@@ -104,9 +117,20 @@
 {#if action.type === "hid-key"}
   <ComboField keys={action.keys} {known} onchange={(k) => set(action, "keys", k)} />
 {:else if action.type === "hid-consumer"}
-  <select bind:value={action.usage} aria-label="Media key">
+  <select
+    value={usageNumber ? "number" : action.usage}
+    onchange={(e) => (action.usage = e.currentTarget.value === "number" ? 0xcd : e.currentTarget.value)}
+    aria-label="Media key"
+  >
     {#each names?.usages ?? Object.keys(usageNames) as u (u)}<option value={u}>{usageNames[u] ?? u}</option>{/each}
+    <option value="number">Other, by usage number</option>
   </select>
+  {#if usageNumber}
+    <label>
+      <span>HID consumer usage number</span>
+      <input type="number" min="1" max="65535" bind:value={action.usage} />
+    </label>
+  {/if}
 {:else if action.type === "hid-system"}
   <select bind:value={action.system} aria-label="Sleep or power off">
     {#each names?.systems ?? Object.keys(systemNames) as s (s)}<option value={s}>{systemNames[s] ?? s}</option>{/each}
@@ -116,6 +140,7 @@
     <span>Text, typed as on a US keyboard</span>
     <textarea rows="3" bind:value={() => action.text ?? "", (v) => set(action, "text", v)}></textarea>
   </label>
+  {#if typeTextProblem(action.text)}<p class="bad small">{typeTextProblem(action.text)}</p>{/if}
 {:else if action.type === "delay"}
   <label>
     <span>Milliseconds</span>
@@ -243,14 +268,16 @@
   {/each}
 {/if}
 
-{#if isPC(action.type) && device.state === "ready"}
-  {#if action.type === "app" && action.app === "media" && !mediaNeedsHelper.has(action.op ?? "")}
-    {#if !device.host?.connected}<p class="muted">Without the PC helper, it works as the plain media key.</p>{/if}
-  {:else if !device.host?.connected}
-    <p class="muted">The PC helper isn't running, so this won't work yet.</p>
-  {:else if action.type === "app" && !hostApp?.status}
-    <p class="muted">{appNames[action.app ?? ""] ?? action.app} isn't set up in the PC helper yet.</p>
-  {/if}
+{#if isPC(action.type) && helperMissing}
+  <p class="muted">
+    {!device.host?.connected
+      ? "The PC helper isn't running"
+      : `${appNames[action.app ?? ""] ?? action.app} isn't set up in the PC helper yet`}{action.fallback
+      ? ", so the device does the fallback below instead."
+      : builtin
+        ? `, so the device presses ${describe(builtin)} instead.`
+        : ", so this won't work yet."}
+  </p>
 {/if}
 
 {#if isPC(action.type) && types.some(isPC)}
@@ -260,6 +287,7 @@
       <ActionEditor bind:action={action.fallback} types={fallbackTypes} label="Instead, the device does" />
       <button type="button" class="plain" onclick={() => delete action.fallback}>Remove</button>
     {:else}
+      {#if builtin}<p class="muted small">Built in: {describe(builtin)}. Set something else to replace it.</p>{/if}
       <button type="button" class="plain" onclick={() => (action.fallback = { type: "hid-key", keys: [] })}
         >+ Something the device does instead</button
       >

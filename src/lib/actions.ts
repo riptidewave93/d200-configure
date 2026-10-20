@@ -1,3 +1,6 @@
+import type { Action } from "./config";
+import { formatCombo } from "./keys";
+
 // What a key can do, in words for people. Types and fields are in
 // d200-deck's docs/config.md.
 
@@ -36,6 +39,7 @@ export const usageNames: Record<string, string> = {
   "play-pause": "Play / pause",
   "next-track": "Next track",
   "prev-track": "Previous track",
+  stop: "Stop",
   mute: "Mute",
   "volume-up": "Volume up",
   "volume-down": "Volume down",
@@ -85,9 +89,25 @@ const opNames: Record<string, string> = {
 
 export const opName = (app = "", op = "") => opNames[`${app}.${op}`] ?? op;
 
-// Media player keys work as the plain media keys without the PC helper;
-// these don't.
-export const mediaNeedsHelper = new Set(["shuffle", "repeat"]);
+// describe says in a few words what a device action does, e.g. "ctrl +
+// shift + m" or "the Play / pause key".
+export function describe(a: Action): string {
+  if (a.type === "hid-key") return formatCombo(a.keys ?? []);
+  if (a.type === "hid-consumer") {
+    const name = usageNames[String(a.usage)];
+    return name ? `the ${name} key` : `media key ${a.usage}`;
+  }
+  return typeName(a.type);
+}
+
+// typeTextProblem says what the device won't type: it types ASCII, up to
+// 1024 characters.
+export function typeTextProblem(text = ""): string {
+  const odd = [...new Set([...text].filter((c) => c > "~" || (c < " " && c !== "\n" && c !== "\t")))];
+  if (odd.length) return `It can't type ${odd.join(" ")}: only plain letters, digits and symbols (ASCII).`;
+  if (text.length > 1024) return "Up to 1024 characters.";
+  return "";
+}
 
 const player = { name: "id", label: "Player (empty for the one playing)" };
 

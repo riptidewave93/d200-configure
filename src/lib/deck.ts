@@ -3,7 +3,7 @@
 
 import "../wasm/wasm_exec.js";
 import wasmURL from "../wasm/deck.wasm?url";
-import type { Button, Config, IconEntry, Look } from "./config";
+import type { Action, Button, Config, IconEntry, Look } from "./config";
 import type { Layout } from "./layout";
 
 export interface Names {
@@ -60,6 +60,9 @@ export interface Deck {
   newPage(): void;
   // missingGlyphs are the label characters the look's font lacks
   missingGlyphs(look: Look): string;
+  // builtinFallback is what the device does instead while the PC helper
+  // can't run an app action, if it has something built in
+  builtinFallback(a: Action): Action | null;
   layout: Layout;
   names: Names;
   icons: string[];
@@ -82,6 +85,7 @@ interface Exports {
   imageInfo(base64: string): string;
   newPage(): void;
   missingGlyphs(json: string): string;
+  builtinFallback(json: string): string;
   layout: string;
   iconNames: string;
   iconPath(name: string): IconPath | null;
@@ -133,6 +137,7 @@ async function start(code?: BufferSource): Promise<Deck> {
       return r;
     },
     newPage: () => x.newPage(),
+    builtinFallback: (a) => JSON.parse(x.builtinFallback(JSON.stringify(a))),
     missingGlyphs: (l) => x.missingGlyphs(JSON.stringify({ ...l, action: {} })),
     imageInfo: (s) => {
       const r = JSON.parse(x.imageInfo(s));
