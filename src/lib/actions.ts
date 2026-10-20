@@ -85,6 +85,7 @@ const opNames: Record<string, string> = {
   "media.stop": "Stop",
   "media.shuffle": "Shuffle",
   "media.repeat": "Repeat",
+  "media.now-playing": "Now playing",
 };
 
 export const opName = (app = "", op = "") => opNames[`${app}.${op}`] ?? op;
@@ -124,7 +125,7 @@ export const opArgs: Record<string, { name: string; label: string; number?: bool
   "discord.output-volume-down": [{ name: "step", label: "Step (default 10)", number: true }],
   "obs.scene": [{ name: "id", label: "Scene name" }],
   "obs.mute": [{ name: "id", label: "Audio source name" }],
-  ...Object.fromEntries(["play-pause", "next", "previous", "stop", "shuffle", "repeat"].map((op) => [`media.${op}`, [player]])),
+  ...Object.fromEntries(["play-pause", "next", "previous", "stop", "shuffle", "repeat", "now-playing"].map((op) => [`media.${op}`, [player]])),
 };
 
 // splitCommand splits a command line into words; quotes keep spaces.

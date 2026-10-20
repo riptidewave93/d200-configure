@@ -266,6 +266,9 @@
       />
     </label>
   {/each}
+  {#if action.app === "media" && action.op === "now-playing"}
+    <p class="muted small">The key shows the song playing on the PC: its album art, or its title and artist.</p>
+  {/if}
 {/if}
 
 {#if isPC(action.type) && helperMissing}

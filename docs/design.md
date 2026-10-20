@@ -142,6 +142,8 @@ package.
   use, including the built-in looks of app keys (Discord, OBS, media players), and drops the ones no key uses. A name that's in neither
   the config nor the catalog stops the save, with its name.
 - **Previews** embed into a copy of the config before drawing, so they match the device.
+  One exception: a **Now playing** key with no look of its own is blank on the device until the PC
+  helper sends a song, so the preview shows a dim "Now playing" instead.
 - **Emoji:** the device has no emoji font, so a picked emoji is drawn here, with the computer's own
   emoji font, into a 120 px PNG (about 7–15 KB) and kept as an icon named `emoji-<code points>`,
   e.g. `emoji-1f3ae`. It's drawn at icon size, like other icons. Each emoji is kept once however

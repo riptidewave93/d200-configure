@@ -36,5 +36,23 @@ export function drawKey(deck: Deck, doc: Doc, key: number, b: Button, on = false
     deck.newPage();
     page = doc.page;
   }
+  if (isNowPlaying(b, on)) return dim(deck.renderKey(key, { ...b, label: "Now\nplaying" }, on));
   return deck.renderKey(key, b, on);
+}
+
+// A now-playing key with nothing set on it is blank until the PC helper
+// sends a song, so the preview shows a dim placeholder instead.
+function isNowPlaying(b: Button, on: boolean): boolean {
+  const a = b.action;
+  return !on && a?.type === "app" && a.app === "media" && a.op === "now-playing" && !b.icon && !b.image && !b.label;
+}
+
+function dim(px: Pixels | null): Pixels | null {
+  if (!px) return px;
+  for (let i = 0; i < px.data.length; i += 4) {
+    px.data[i] *= 0.4;
+    px.data[i + 1] *= 0.4;
+    px.data[i + 2] *= 0.4;
+  }
+  return px;
 }
