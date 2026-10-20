@@ -41,7 +41,8 @@ export class FakeDevice implements Transport {
     ipv4: "198.18.0.1",
   };
   host: HostInfo = { connected: false };
-  settingsState: Settings = { usb_drive: true, usb_net4: "" };
+  settingsState: Settings = { usb_drive: true, usb_net4: "", brightness: 100, brightness_min: 10 };
+  settingsChanges: Settings[] = [];
   config: Uint8Array;
   identified: number[] = []; // -1: the whole screen
   // flashes the whole screen on an empty identify; older devices don't
@@ -134,8 +135,11 @@ export class FakeDevice implements Transport {
           const why = await this.asked();
           if (why) return [Status.Failed, bytes(why)];
         }
+        if (p.length > 0) this.settingsChanges.push(change);
         Object.assign(this.settingsState, change);
-        return [Status.OK, json(this.settingsState)];
+        const s = this.settingsState;
+        if (s.brightness !== undefined) s.brightness = Math.min(100, Math.max(s.brightness_min ?? 0, s.brightness));
+        return [Status.OK, json(s)];
       }
       case Cmd.ConfigInfo: {
         const info = await this.info();

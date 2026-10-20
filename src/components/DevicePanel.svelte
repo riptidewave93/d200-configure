@@ -9,6 +9,19 @@
   let error = $state("");
   let address = $state(device.settings?.usb_net4 ?? "");
   let addressOK = $derived(address === "" || /^(\d{1,3})(\.\d{1,3}){3}$/.test(address));
+  // the slider's own value: replies to earlier changes come in while it moves
+  let brightness = $state(device.settings?.brightness ?? 100);
+  let usb = $derived(device.settings?.usb_drive !== undefined || device.settings?.usb_net4 !== undefined);
+
+  async function setBrightness(v: number) {
+    brightness = v;
+    error = "";
+    try {
+      await device.setBrightness(v);
+    } catch (err) {
+      error = message(err);
+    }
+  }
 
   async function change(s: Parameters<typeof device.changeSettings>[0]) {
     error = "";
@@ -58,6 +71,18 @@
   </dl>
 
   {#if device.settings}
+    {#if device.settings.brightness !== undefined}
+      <label>
+        <span>Brightness</span>
+        <input
+          type="range"
+          min={device.settings.brightness_min ?? 0}
+          max="100"
+          value={brightness}
+          oninput={(e) => setBrightness(e.currentTarget.valueAsNumber)}
+        />
+      </label>
+    {/if}
     {#if device.settings.usb_drive !== undefined}
       <label class="row check">
         <input
@@ -85,7 +110,7 @@
         {#if !addressOK}<p class="bad">An IPv4 address, such as 10.77.0.4.</p>{/if}
       </form>
     {/if}
-    <p class="muted">Changing these reconnects the device.</p>
+    {#if usb}<p class="muted">Changing the USB settings reconnects the device.</p>{/if}
   {/if}
   {#if error}<p class="bad">{error}</p>{/if}
 

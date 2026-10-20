@@ -83,7 +83,7 @@ a {
 }
 
 /* Fields */
-input:not([type="checkbox"], [type="color"]),
+input:not([type="checkbox"], [type="color"], [type="range"]),
 select,
 textarea {
   width: 100%;
@@ -94,7 +94,7 @@ textarea {
   color: inherit;
   font: inherit;
 }
-input:focus,
+input:not([type="range"]):focus,
 select:focus,
 textarea:focus {
   outline: none;
@@ -103,6 +103,11 @@ textarea:focus {
 }
 textarea {
   resize: vertical;
+}
+input[type="range"] {
+  accent-color: var(--accent);
+  width: 100%;
+  margin: 0;
 }
 input[type="checkbox"] {
   accent-color: var(--accent);

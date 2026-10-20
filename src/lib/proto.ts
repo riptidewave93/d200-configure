@@ -98,6 +98,8 @@ export interface Time {
 export interface Settings {
   usb_drive?: boolean;
   usb_net4?: string; // "" is the default address
+  brightness?: number; // percent, brightness_min to 100; absent if it can't be set
+  brightness_min?: number; // read only
 }
 
 export interface ConfigInfo {

@@ -17,6 +17,9 @@ const text = new TextDecoder();
 // How often to ask whether the PC helper is running: nothing tells us.
 const hostPoll = 5000;
 
+// At most 10 brightness changes a second while a slider moves.
+const brightnessGap = 100;
+
 // The serial number of the device used last, so that with several allowed
 // the site goes back to the same one. Only in this browser.
 const lastKey = "last-device";
@@ -62,6 +65,8 @@ export class Device {
   private serial = "";
   private poll = 0;
   private clock = 0;
+  private brightness = 0;
+  private sendingBrightness = false;
 
   constructor() {
     if (typeof navigator !== "undefined" && "hid" in navigator) {
@@ -272,6 +277,25 @@ export class Device {
       this.settings = await this.connected().settings(change, () => (this.asking = "Change"));
     } finally {
       this.asking = "";
+    }
+  }
+
+  // setBrightness sets the screen's brightness. It applies at once, so a
+  // slider calls it as it moves: the device gets at most one change per
+  // brightnessGap, and always the last.
+  async setBrightness(percent: number) {
+    this.brightness = percent;
+    if (this.sendingBrightness) return;
+    this.sendingBrightness = true;
+    try {
+      let sent = -1;
+      while (sent !== this.brightness) {
+        sent = this.brightness;
+        this.settings = await this.connected().settings({ brightness: sent });
+        await new Promise((r) => setTimeout(r, brightnessGap));
+      }
+    } finally {
+      this.sendingBrightness = false;
     }
   }
 

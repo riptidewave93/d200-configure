@@ -50,6 +50,19 @@ describe("device", () => {
     await d.disconnect();
   });
 
+  it("sends brightness as a slider moves: not every step, but always the last", async () => {
+    const fake = new FakeDevice();
+    const d = new Device();
+    await d.open(fake);
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "clearTimeout"] });
+    const done = [20, 30, 40, 50].map((p) => d.setBrightness(p));
+    await vi.advanceTimersByTimeAsync(1000);
+    await Promise.all(done);
+    expect(fake.settingsChanges).toEqual([{ brightness: 20 }, { brightness: 50 }]);
+    expect(d.settings?.brightness).toBe(50);
+    await d.disconnect();
+  });
+
   it("connects to a device that can't take the time", async () => {
     const older = new FakeDevice();
     older.unknown.add(Cmd.Time);
