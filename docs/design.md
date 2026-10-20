@@ -23,6 +23,7 @@ What to know before changing the site. The protocol and config format are d200-d
 | `src/lib/gzip.ts` | Gzipped configs (protocol 4) |
 | `src/lib/doc.svelte.ts` | The config being edited |
 | `src/lib/features.ts` | What to offer, and the pre-save check |
+| `src/lib/errors.ts` | Why a config can't be saved, in plain words |
 | `src/lib/actions.ts`, `keys.ts` | Words for actions, keys and app ops |
 | `src/lib/pages.ts` | The page tree, from the keys that open pages |
 | `src/lib/deck.ts`, `draw.ts` | Loading the WebAssembly part, drawing keys with it |
@@ -77,7 +78,8 @@ It's built with TinyGo, so:
 1. On connect the site reads the config and keeps its rev (SHA-256).
 2. Save checks that the device supports what the config uses, then runs `validate`.
 3. If the device's rev changed meanwhile, the site asks whether to replace that config or load it.
-4. The device checks again and may refuse with a reason; the site shows it as it is.
+4. The device checks again and may refuse with a reason. The site words it as a fix (`errors.ts`)
+   and selects the key it's about.
 5. New key actions and a new USB address wait for a press on the device; the site says so.
 
 Saving (to the device or a file) also embeds the catalog icons the keys use and drops icons,
@@ -93,17 +95,18 @@ lists what the device's software supports. The site offers what's in both that a
 |---|---|
 | Action types; key, media key, system and font names; fields such as `button.on` | In both lists |
 | App actions and their settings | The device's list, or all for an app it doesn't know; while the PC helper is connected, only what it runs |
-| Limits | The smaller of the two |
+| Limits | The smaller of the two; `anim_bytes` only from a device that reports it |
 
-A device without `features` counts as supporting the site's list. A value already in the config
-always shows. Before saving, `unsupportedMessage` refuses a config that uses what the device lacks.
+A device without `features` gets the site's lists, and the older GIF budget. A value already in the
+config always shows. Before saving, `unsupportedMessage` refuses a config that uses what the device lacks.
 Gate a new option in the editor on its field or name.
 
 ## Pictures and fonts
 
 - **Pictures** are fitted when added (`wasm/fit`): scaled to where they're drawn, animated GIFs
   thinned to what the page's other GIFs leave of its animation budget (`anim_bytes`, a byte a
-  pixel; 4 on devices without it), then encoded within the byte limit.
+  pixel; 4 on devices without it), then encoded within the byte limit. A page over the budget gets
+  a warning: the device shows the GIFs past it as still pictures.
 - **Emoji** are drawn with the computer's emoji font into a PNG icon named `emoji-<code points>`.
 - **Catalog fonts** (`src/lib/fontcatalog.json`) are downloaded by `make fonts` into
   `public/fonts/`, kept in git. A font goes into the config cut down to the characters its labels

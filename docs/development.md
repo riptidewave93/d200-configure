@@ -29,8 +29,9 @@
 
 ## Updating d200-deck
 
-Locally the site builds against `../d200-deck`; CI builds against `DECK_VERSION` in the `Makefile`.
-Push d200-deck first, then set `DECK_VERSION` to its commit. To build as CI does:
+Locally the site builds against `../d200-deck`; CI builds against `DECK_VERSION` in the `Makefile`,
+fetched from GitHub. Set it to the d200-deck commit the site needs, and push d200-deck before this
+repo, or CI can't fetch it. To build as CI does:
 
 ```bash
 make deck-source && make DECK_DIR=.cache/d200-deck
