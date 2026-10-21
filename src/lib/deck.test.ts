@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import type { Config } from "./config";
 import { load } from "./deck";
+import { loadLogos } from "./logos";
 
 const deck = () => load(readFileSync(new URL("../wasm/deck.wasm", import.meta.url)));
 
@@ -59,6 +61,20 @@ describe("deck (WebAssembly)", () => {
     expect(d.hasIcon("nope")).toBe(false);
     expect(d.iconPath("volume_up")).toMatchObject({ viewBox: "0 -960 960 960" });
     expect(d.iconPath("nope")).toBeNull();
+  });
+
+  it("can draw every app logo", async () => {
+    const d = await deck();
+    const logos = await loadLogos();
+    const c: Config = { version: 1, home: "p0", pages: {}, icons: {} };
+    logos.forEach((l, i) => {
+      // a logo with a path of its own mustn't hide a device icon
+      expect(d.hasIcon(l.name), l.name).toBe(!l.d);
+      if (l.d) c.icons![l.name] = { d: l.d, viewBox: l.viewBox };
+      (c.pages[`p${Math.floor(i / 14)}`] ??= { keys: {} }).keys[String(i % 14)] = { icon: l.name, action: { type: "home" } };
+    });
+    c.icons = d.embed(c).icons;
+    expect(d.validate(c)).toBe("");
   });
 
   it("embeds the icons keys show, and only those", async () => {

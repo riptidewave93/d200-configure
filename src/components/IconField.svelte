@@ -1,19 +1,25 @@
-<!-- A key's icon: a built-in one by name, an emoji, or a picture, picked from a searchable grid. -->
+<!-- A key's icon: a built-in one by name, an app logo, an emoji, or a picture, picked from a searchable grid. -->
 <script lang="ts">
+  import { brandColours, grouped, keyBackground, loadLogos, type Logo } from "../lib/logos";
   import { app } from "../lib/context";
   import { emojiChar, emojis, search as searchEmoji, type Emoji } from "../lib/emoji";
   import { dataURL } from "../lib/pictures";
   import Icon from "./Icon.svelte";
 
-  // onpicture asks for a picture from a file
+  // onlogo picks an app logo, with its colours (on background); onpicture
+  // asks for a picture from a file
   let {
     value,
+    background = keyBackground,
     onchange,
+    onlogo,
     onemoji,
     onpicture,
   }: {
     value?: string;
+    background?: string;
     onchange: (name: string) => void;
+    onlogo?: (l: Logo) => void;
     onemoji?: (e: Emoji) => void;
     onpicture?: () => void;
   } = $props();
@@ -30,10 +36,12 @@
   ];
 
   let open = $state(false);
-  let tab = $state<"icons" | "emoji" | "pictures">("icons");
+  let tab = $state<"icons" | "apps" | "emoji" | "pictures">("icons");
   let search = $state("");
   let allEmoji = $state<Emoji[]>([]);
   let emojiError = $state("");
+  let logos = $state<Logo[]>([]);
+  let logoError = $state("");
 
   let emoji = $derived(emojiChar(value));
   // a picture icon in the config (an emoji is one too, shown as itself)
@@ -55,13 +63,34 @@
       .sort((a, b) => rank(a.key) - rank(b.key))
       .map(({ n }) => n);
   });
+  let logoMatches = $derived.by(() => {
+    const q = search.trim().toLowerCase();
+    return logos.filter((l) => !q || l.title.toLowerCase().includes(q) || l.name.includes(q));
+  });
+  // in groups until a search
+  let logoGroups = $derived(search.trim() ? [{ group: "", logos: logoMatches }] : grouped(logoMatches));
   let emojiMatches = $derived(searchEmoji(allEmoji, search));
   let matches = $derived(
-    tab === "icons" ? iconMatches.length : tab === "emoji" ? emojiMatches.length : pictures.length,
+    {
+      icons: iconMatches.length,
+      apps: logoMatches.length,
+      emoji: emojiMatches.length,
+      pictures: pictures.length,
+    }[tab],
   );
   let unknown = $derived(
     !!value && !emoji && !!deck() && !deck()!.hasIcon(value) && !(value in (doc.config?.icons ?? {})),
   );
+
+  async function showLogos() {
+    tab = "apps";
+    if (logos.length) return;
+    try {
+      logos = await loadLogos();
+    } catch {
+      logoError = "The app logos didn't load.";
+    }
+  }
 
   async function showEmoji() {
     tab = "emoji";
@@ -75,6 +104,11 @@
 
   function pickIcon(name: string) {
     onchange(name);
+    open = false;
+  }
+
+  function pickLogo(l: Logo) {
+    onlogo?.(l);
     open = false;
   }
 
@@ -113,14 +147,21 @@
 
 {#if open}
   <div class="picker">
-    {#if onemoji}
+    {#if onemoji || onlogo}
       <div class="tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === "icons"} class:on={tab === "icons"} onclick={() => (tab = "icons")}
           >Icons</button
         >
-        <button type="button" role="tab" aria-selected={tab === "emoji"} class:on={tab === "emoji"} onclick={showEmoji}
-          >Emoji</button
-        >
+        {#if onlogo}
+          <button type="button" role="tab" aria-selected={tab === "apps"} class:on={tab === "apps"} onclick={showLogos}
+            >Apps</button
+          >
+        {/if}
+        {#if onemoji}
+          <button type="button" role="tab" aria-selected={tab === "emoji"} class:on={tab === "emoji"} onclick={showEmoji}
+            >Emoji</button
+          >
+        {/if}
         {#if onpicture}
           <button
             type="button"
@@ -145,7 +186,7 @@
       <!-- svelte-ignore a11y_autofocus -->
       <input
         bind:value={search}
-        placeholder={tab === "icons" ? "Search, e.g. volume" : "Search, e.g. game"}
+        placeholder={{ icons: "Search, e.g. volume", apps: "Search, e.g. Discord", emoji: "Search, e.g. game" }[tab]}
         aria-label="Search"
         autofocus
       />
@@ -156,6 +197,25 @@
           <button type="button" class="cell" class:on={name === value} title={name} onclick={() => pickIcon(name)}>
             <Icon {name} />
           </button>
+        {/each}
+      {:else if tab === "apps"}
+        {#each logoGroups as g (g.group)}
+          {#if g.group}<p class="group muted small">{g.group}</p>{/if}
+          {#each g.logos as l (l.name)}
+            {@const c = brandColours(l.hex, background)}
+            <button
+              type="button"
+              class="cell logo"
+              class:on={l.name === value}
+              title={l.title}
+              aria-label={l.title}
+              style:color={c.color}
+              style:background={c.background ?? background}
+              onclick={() => pickLogo(l)}
+            >
+              <Icon name={l.name} path={l.d ? { d: l.d, viewBox: l.viewBox! } : undefined} />
+            </button>
+          {/each}
         {/each}
       {:else if tab === "pictures"}
         {#each pictures as p (p.name)}
@@ -174,8 +234,11 @@
     <p class="muted small">
       {#if tab === "pictures"}A PNG, JPEG or GIF, made smaller to fit if it must. GIFs move on the device.
       {:else if emojiError && tab === "emoji"}{emojiError}
+      {:else if logoError && tab === "apps"}{logoError}
+      {:else if tab === "apps" && !logos.length}Loading…
       {:else if tab === "emoji" && !allEmoji.length}Loading…
       {:else if tab === "icons" && !search.trim()}Common icons. Search to find more.
+      {:else if tab === "apps" && matches}Logos are their makers' trademarks; a logo sets the key's colours too.
       {:else if matches > shown}{shown} of {matches}. Search to find more.
       {:else if !matches}Nothing matches.
       {:else if tab === "emoji"}Emoji are saved as small pictures, drawn by this computer.{/if}
@@ -250,6 +313,16 @@
   .cell:hover,
   .cell.on {
     background: var(--line);
+  }
+  .cell.logo {
+    padding: 8px;
+  }
+  .grid .group {
+    grid-column: 1 / -1;
+    margin: 6px 0 0;
+  }
+  .cell.logo.on {
+    outline: 2px solid var(--fg);
   }
   .picker p {
     margin: 0;

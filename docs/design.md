@@ -28,6 +28,7 @@ What to know before changing the site. The protocol and config format are d200-d
 | `src/lib/pages.ts` | The page tree, from the keys that open pages |
 | `src/lib/deck.ts`, `draw.ts` | Loading the WebAssembly part, drawing keys with it |
 | `src/lib/emoji.ts`, `pictures.ts`, `fonts.ts` | Emoji, pictures and fonts going into the config |
+| `src/lib/logos.ts` | The app logos, and a key's colours for one |
 | `src/lib/mac.ts` | Mac key combos, and telling the device which computer it's on |
 | `src/lib/align.ts` | Align screen |
 | `src/lib/models.ts` | The kinds of device: keys and face |
@@ -122,6 +123,12 @@ Gate a new option in the editor on its field or name.
   thinned to what the page's other GIFs leave of its animation budget (`anim_bytes`, a byte a
   pixel; 4 on devices without it), then encoded within the byte limit. A page over the budget gets
   a warning: the device shows the GIFs past it as still pictures.
+- **App logos** (`src/lib/logos.json`, made by `make logos` and kept in git) go into the config as
+  path icons. `scripts/logos.mjs` takes them from the icon packages in `package.json`, redraws arcs
+  as curves, since the device can't draw arcs, and stops on a licence that can't ship with the site
+  or that `NOTICE.md` doesn't credit. A logo sets the key's colours too: the brand colour if it has
+  3:1 contrast on the key's background, else white (black on a light one) on the brand colour; a
+  near-black brand keeps the key's background.
 - **Emoji** are drawn with the computer's emoji font into a PNG icon named `emoji-<code points>`.
 - **Catalog fonts** (`src/lib/fontcatalog.json`) are downloaded by `make fonts` into
   `public/fonts/`, kept in git. A font goes into the config cut down to the characters its labels

@@ -20,7 +20,7 @@ RUN := $(DOCKER) run --rm --user $(shell id -u):$(shell id -g) -e HOME=/tmp \
 	-v "$(REPO_DIR)":/repo:Z -w /repo
 endif
 
-.PHONY: all check test build dev wasm fonts deck-source clean
+.PHONY: all check test build dev wasm logos fonts deck-source clean
 
 all : check test build
 
@@ -44,6 +44,10 @@ wasm :
 		cd .. && cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" src/wasm/ && \
 		fonts="$$(go list -C wasm -m -f "{{.Dir}}" golang.org/x/image)/font/gofont/ttfs" && \
 		install -m 644 "$$fonts/Go-Regular.ttf" "$$fonts/Go-Medium.ttf" src/wasm/'
+
+# The icon picker's app logos (src/lib/logos.json), from the icon packages in package.json; kept in git
+logos : node_modules
+	$(RUN) $(NODE_IMAGE) node scripts/logos.mjs
 
 # The font catalog (src/lib/fontcatalog.json) into public/fonts, from Google Fonts; kept in git
 fonts :
