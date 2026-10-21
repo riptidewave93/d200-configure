@@ -2,6 +2,7 @@
 <script lang="ts">
   import { brandColours, grouped, keyBackground, loadLogos, type Logo } from "../lib/logos";
   import { app } from "../lib/context";
+  import { hasIcon, iconNames, iconsReady, loadIcons } from "../lib/icons.svelte";
   import { emojiChar, emojis, search as searchEmoji, type Emoji } from "../lib/emoji";
   import { dataURL } from "../lib/pictures";
   import Icon from "./Icon.svelte";
@@ -24,7 +25,7 @@
     onpicture?: () => void;
   } = $props();
 
-  const { deck, doc } = app();
+  const { doc } = app();
   // enough to scan at a glance; searching narrows the rest
   const shown = 120;
   // what the picker opens on, before a search
@@ -52,9 +53,9 @@
       .map(([n, i]) => ({ name: n, src: dataURL(i.png!) })),
   );
   let iconMatches = $derived.by(() => {
-    const all = deck()?.icons ?? [];
+    const all = iconNames();
     const q = search.trim().toLowerCase().replace(/[\s-]+/g, "_");
-    if (!q) return common.filter((n) => deck()?.hasIcon(n));
+    if (!q) return common.filter(hasIcon);
     // exact match first, then names that start with it, then the rest
     const rank = (n: string) => (n === q ? 0 : n.startsWith(q) ? 1 : 2);
     return all
@@ -79,8 +80,12 @@
     }[tab],
   );
   let unknown = $derived(
-    !!value && !emoji && !!deck() && !deck()!.hasIcon(value) && !(value in (doc.config?.icons ?? {})),
+    !!value && !emoji && iconsReady() && !hasIcon(value) && !(value in (doc.config?.icons ?? {})),
   );
+  // the catalog, to pick from or to know a typed name
+  $effect(() => {
+    if (open || (value && !emoji && !(value in (doc.config?.icons ?? {})))) loadIcons();
+  });
 
   async function showLogos() {
     tab = "apps";
@@ -237,6 +242,7 @@
       {:else if logoError && tab === "apps"}{logoError}
       {:else if tab === "apps" && !logos.length}Loading…
       {:else if tab === "emoji" && !allEmoji.length}Loading…
+      {:else if tab === "icons" && !iconsReady()}Loading…
       {:else if tab === "icons" && !search.trim()}Common icons. Search to find more.
       {:else if tab === "apps" && matches}Logos are their makers' trademarks; a logo sets the key's colours too.
       {:else if matches > shown}{shown} of {matches}. Search to find more.

@@ -20,7 +20,7 @@ RUN := $(DOCKER) run --rm --user $(shell id -u):$(shell id -g) -e HOME=/tmp \
 	-v "$(REPO_DIR)":/repo:Z -w /repo
 endif
 
-.PHONY: all check test build dev wasm logos fonts deck-source clean
+.PHONY: all check test build dev wasm icons logos fonts deck-source clean
 
 all : check test build
 
@@ -44,6 +44,11 @@ wasm :
 		cd .. && cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" src/wasm/ && \
 		fonts="$$(go list -C wasm -m -f "{{.Dir}}" golang.org/x/image)/font/gofont/ttfs" && \
 		install -m 644 "$$fonts/Go-Regular.ttf" "$$fonts/Go-Medium.ttf" src/wasm/'
+
+# The icon catalog (src/lib/icons.json), from d200-deck's icons package at DECK_DIR; kept in git
+icons :
+	$(GOWORK_FILE)
+	$(GO) go run -C wasm ./genicons "$$(git -C $(DECK_DIR) describe --tags --always)" > src/lib/icons.json
 
 # The icon picker's app logos (src/lib/logos.json), from the icon packages in package.json; kept in git
 logos : node_modules

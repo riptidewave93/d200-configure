@@ -28,6 +28,7 @@ What to know before changing the site. The protocol and config format are d200-d
 | `src/lib/pages.ts` | The page tree, from the keys that open pages |
 | `src/lib/deck.ts`, `draw.ts` | Loading the WebAssembly part, drawing keys with it |
 | `src/lib/emoji.ts`, `pictures.ts`, `fonts.ts` | Emoji, pictures and fonts going into the config |
+| `src/lib/icons.svelte.ts` | The icon catalog, and copying the icons keys use into the config |
 | `src/lib/logos.ts` | The app logos, and a key's colours for one |
 | `src/lib/mac.ts` | Mac key combos, and telling the device which computer it's on |
 | `src/lib/align.ts` | Align screen |
@@ -45,13 +46,12 @@ Tests sit next to the code, as `*.test.ts` and `*_test.go`.
 | Function | From | Used for |
 |---|---|---|
 | `validate` | `deck.ParseStrict` | Checking a config before saving or opening it |
-| `renderKey`, `setAssets` | `render.Renderer`, `icons.Embed` | Key previews, as the device draws them |
-| `embed` | `icons.Embed` | Copying the icons keys use into the config |
+| `renderKey`, `setAssets` | `render.Renderer` | Key previews, as the device draws them |
+| `iconsUsed` | `Config.IconsUsed` | Which icons to copy into the config |
 | `features` | `deck.Features` | What the site supports |
 | `fitImage` | `wasm/fit`, `deck.ImageSize` | Fitting pictures as they're added |
 | `animBytes`, `pictureBox` | `render.AnimBytes`, `render.PictureBox` | A page's animation budget, as the device counts it |
 | `layout` | `render.Key` | Where the keys sit on the face |
-| `iconNames`, `iconPath` | `icons.Names`, `icons.Get` | The icon picker |
 | `missingGlyphs`, `fontLacks` | `render.MissingGlyphs` | Warning about characters a font lacks |
 | `subsetFont`, `checkFont` | `fonts.Subset`, `deck.CheckFont` | Fonts cut down to their labels; fonts from files |
 | `newPage` | `render.NewPage` | Each page's own animation budget |
@@ -123,6 +123,9 @@ Gate a new option in the editor on its field or name.
   thinned to what the page's other GIFs leave of its animation budget (`anim_bytes`, a byte a
   pixel; 4 on devices without it), then encoded within the byte limit. A page over the budget gets
   a warning: the device shows the GIFs past it as still pictures.
+- **Icons** (`src/lib/icons.json`, made by `make icons` from d200-deck's `icons` package and kept
+  in git) load the first time they're needed: the picker opens, or a key shows an icon the config
+  doesn't have yet. The WebAssembly part has no icons of its own.
 - **App logos** (`src/lib/logos.json`, made by `make logos` and kept in git) go into the config as
   path icons. `scripts/logos.mjs` takes them from the icon packages in `package.json`, redraws arcs
   as curves, since the device can't draw arcs, and stops on a licence that can't ship with the site

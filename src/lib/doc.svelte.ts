@@ -4,6 +4,7 @@ import type { Action, Button, Config } from "./config";
 import type { Deck } from "./deck";
 import { pageTree, pathTo, type PageTree } from "./pages";
 import { trimFonts } from "./fonts";
+import { embedAll } from "./icons.svelte";
 import { usedImages } from "./pictures";
 
 // A key on a page.
@@ -69,8 +70,8 @@ export class Doc {
   // and the catalog, drops the images and fonts no key uses, and cuts
   // cut-down fonts to their labels: the device has little room. It returns
   // the icon names found in neither.
-  tidy(deck: Deck): string[] {
-    const { icons, unknown } = deck.embed(this.c);
+  async tidy(deck: Deck): Promise<string[]> {
+    const { icons, unknown } = await embedAll(deck, this.c);
     if (Object.keys(icons).length) this.c.icons = icons;
     else delete this.c.icons;
     if (this.c.images) {

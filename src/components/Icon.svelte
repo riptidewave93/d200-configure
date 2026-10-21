@@ -2,13 +2,17 @@
 <script lang="ts">
   import { app } from "../lib/context";
   import type { IconPath } from "../lib/deck";
+  import { iconPath, iconsReady, loadIcons } from "../lib/icons.svelte";
 
   // path draws one that isn't in the config yet
   let { name, path: given }: { name: string; path?: IconPath } = $props();
 
-  const { deck, doc } = app();
+  const { doc } = app();
   let own = $derived(doc.config?.icons?.[name]);
-  let path = $derived(given ?? (own?.d ? { d: own.d, viewBox: own.viewBox ?? "0 0 24 24" } : deck()?.iconPath(name)) ?? null);
+  let path = $derived(given ?? (own?.d ? { d: own.d, viewBox: own.viewBox ?? "0 0 24 24" } : iconPath(name)) ?? null);
+  $effect(() => {
+    if (!given && !own && !iconsReady()) loadIcons();
+  });
 </script>
 
 {#if path}
