@@ -19,7 +19,7 @@ export function loadLogos(): Promise<Logo[]> {
 }
 
 // The order of the picker's groups; others follow.
-const groups = ["Browsers", "Chat", "Games", "Media", "Creative", "Work", "Code"];
+const groups = ["Browsers", "Chat", "Games", "Media", "Creative", "Work", "Code", "System"];
 
 // grouped sorts logos into their groups, in the picker's order.
 export function grouped(logos: Logo[]): { group: string; logos: Logo[] }[] {

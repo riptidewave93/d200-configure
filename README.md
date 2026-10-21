@@ -59,5 +59,5 @@ The page uses the [Go fonts](https://go.dev/blog/go-fonts) (BSD-3-Clause), from 
 Emoji names and search words are from [emojibase](https://emojibase.dev/) (MIT). The fonts in
 `public/fonts/` are from [Google Fonts](https://fonts.google.com/), under the SIL Open Font License
 1.1, except Permanent Marker (Apache-2.0); their licenses are in `public/fonts/licenses/`. The app
-logos are from [Simple Icons](https://simpleicons.org/) and are their makers' trademarks;
-[NOTICE.md](NOTICE.md) lists their licenses.
+logos are their makers' trademarks, from [Simple Icons](https://simpleicons.org/) and other icon
+sets; [NOTICE.md](NOTICE.md) lists their sources and licenses.

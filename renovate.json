@@ -38,7 +38,7 @@
     },
     {
       "description": "Icon packages: updated by hand, with make logos",
-      "matchPackageNames": ["simple-icons"],
+      "matchPackageNames": ["simple-icons", "@phosphor-icons/core", "bootstrap-icons", "@vscode/codicons"],
       "enabled": false
     },
     {
