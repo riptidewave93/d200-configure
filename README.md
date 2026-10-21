@@ -4,7 +4,8 @@ Set up your Ulanzi D200's keys from your browser: **https://riptidewave93.github
 
 ## What you get
 
-- Pages of keys with icons, emoji, pictures (animated GIFs too) and labels in the font you like
+- Pages of keys with icons, app logos, emoji, pictures (animated GIFs too) and labels in the font
+  you like
 - Keys that press a key combo or media key, type text, run a macro or open another page; with the
   PC helper, keys that open a website or program, or control Discord, OBS or your music player
 - A preview of each key as the D200 shows it, and a warning when a page has more animation than the
@@ -57,4 +58,6 @@ are listed in d200-deck's [NOTICE.md](https://github.com/riptidewave93/d200-deck
 The page uses the [Go fonts](https://go.dev/blog/go-fonts) (BSD-3-Clause), from that same code.
 Emoji names and search words are from [emojibase](https://emojibase.dev/) (MIT). The fonts in
 `public/fonts/` are from [Google Fonts](https://fonts.google.com/), under the SIL Open Font License
-1.1, except Permanent Marker (Apache-2.0); their licenses are in `public/fonts/licenses/`.
+1.1, except Permanent Marker (Apache-2.0); their licenses are in `public/fonts/licenses/`. The app
+logos are from [Simple Icons](https://simpleicons.org/) and are their makers' trademarks;
+[NOTICE.md](NOTICE.md) lists their licenses.

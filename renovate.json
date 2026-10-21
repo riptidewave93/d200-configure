@@ -37,6 +37,11 @@
       "semanticCommitScope": "deps"
     },
     {
+      "description": "Icon packages: updated by hand, with make logos",
+      "matchPackageNames": ["simple-icons"],
+      "enabled": false
+    },
+    {
       "description": "npm packages (all build and test tools): one PR a week",
       "matchManagers": ["npm"],
       "groupName": "npm packages",

@@ -7,6 +7,6 @@ export default defineConfig({
   base: "/d200-configure/",
   plugins: [svelte()],
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.mjs"],
   },
 });

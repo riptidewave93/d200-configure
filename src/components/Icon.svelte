@@ -1,11 +1,14 @@
-<!-- A built-in icon, from the same path data the device draws. -->
+<!-- An icon by name, from the same path data the device draws: the config's own, else a built-in one. -->
 <script lang="ts">
   import { app } from "../lib/context";
+  import type { IconPath } from "../lib/deck";
 
-  let { name }: { name: string } = $props();
+  // path draws one that isn't in the config yet
+  let { name, path: given }: { name: string; path?: IconPath } = $props();
 
-  const { deck } = app();
-  let path = $derived(deck()?.iconPath(name) ?? null);
+  const { deck, doc } = app();
+  let own = $derived(doc.config?.icons?.[name]);
+  let path = $derived(given ?? (own?.d ? { d: own.d, viewBox: own.viewBox ?? "0 0 24 24" } : deck()?.iconPath(name)) ?? null);
 </script>
 
 {#if path}

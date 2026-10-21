@@ -1,5 +1,6 @@
 <!-- How a key looks: icon or image, label, font and colours. -->
 <script lang="ts">
+  import { brandColours, keyBackground, type Logo } from "../lib/logos";
   import { MaxIconBytes, MaxImageBytes, type Look } from "../lib/config";
   import { emojiID, emojiPNG, type Emoji } from "../lib/emoji";
   import { app } from "../lib/context";
@@ -92,6 +93,15 @@
   function setIcon(v: string) {
     set(look, "icon", v);
     if (v) delete look.image;
+  }
+  // An app logo goes in the config's icons, as an emoji does, and comes with
+  // its brand's colours, measured against the key's background.
+  function setLogo(l: Logo) {
+    if (l.d) (doc.config!.icons ??= {})[l.name] = { d: l.d, viewBox: l.viewBox };
+    setIcon(l.name);
+    const c = brandColours(l.hex, look.background);
+    set(look, "color", c.color);
+    if (c.background) set(look, "background", c.background);
   }
   // An emoji goes in the config's icons as a small PNG, once, however many
   // keys use it; saving drops it again when no key does.
@@ -190,7 +200,9 @@
 
 <IconField
   value={look.icon}
+  background={look.background}
   onchange={setIcon}
+  onlogo={setLogo}
   onemoji={canPictureIcons ? setEmoji : undefined}
   onpicture={canPictureIcons ? () => choose("icon") : undefined}
 />
@@ -274,7 +286,7 @@
   <ColorField
     label="Background"
     value={look.background}
-    fallback="#1c1c1c"
+    fallback={keyBackground}
     onchange={(v) => set(look, "background", v)}
   />
 </div>
