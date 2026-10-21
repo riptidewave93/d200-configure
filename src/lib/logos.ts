@@ -1,6 +1,9 @@
 // The icon picker's app logos (logos.json, by scripts/logos.mjs), and the
 // colours a key gets with one.
 
+import type { Config, Look } from "./config";
+import { set } from "./edit";
+
 // An app logo: its own path, or a device icon's name.
 export interface Logo {
   name: string; // the icon's name
@@ -21,14 +24,27 @@ export function loadLogos(): Promise<Logo[]> {
 // The order of the picker's groups; others follow.
 const groups = ["Browsers", "Chat", "Games", "Media", "Creative", "Work", "Code", "System"];
 
-// grouped sorts logos into their groups, in the picker's order.
-export function grouped(logos: Logo[]): { group: string; logos: Logo[] }[] {
-  const out = new Map<string, Logo[]>();
+// grouped sorts logos (or anything with a group) into their groups, in the
+// picker's order.
+export function grouped<T extends { group: string }>(logos: T[]): { group: string; logos: T[] }[] {
+  const out = new Map<string, T[]>();
   for (const l of logos) out.set(l.group, [...(out.get(l.group) ?? []), l]);
   const rank = (g: string) => (groups.includes(g) ? groups.indexOf(g) : groups.length);
   return [...out]
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
     .map(([group, logos]) => ({ group, logos }));
+}
+
+// giveLogo puts logo l on look in place of its icon or image, with its
+// brand's colours, measured against the key's background. Its path goes in
+// the config's icons, as an emoji's does.
+export function giveLogo(c: Config, look: Look, l: Logo) {
+  if (l.d) (c.icons ??= {})[l.name] = { d: l.d, viewBox: l.viewBox };
+  look.icon = l.name;
+  delete look.image;
+  const k = brandColours(l.hex, look.background);
+  set(look, "color", k.color);
+  if (k.background) set(look, "background", k.background);
 }
 
 // A key's background when it has none of its own.

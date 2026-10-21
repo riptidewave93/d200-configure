@@ -247,7 +247,18 @@
       Promise.all([import("./lib/fakedevice"), load()]).then(([{ FakeDevice }, d]) => {
         const fake = new FakeDevice(d.defaultConfig());
         fake.hello.features = d.features; // as new as the site
-        fake.host = { connected: true, name: "deckhost", version: "dev", apps: [{ name: "discord", title: "Discord" }] };
+        fake.host = {
+          connected: true,
+          name: "deckhost",
+          version: "dev",
+          apps: [
+            { name: "discord", title: "Discord" },
+            { name: "programs", title: "Open app", status: "4 apps found", ops: ["open"] },
+          ],
+          state: Object.fromEntries(
+            ["ready", "available:files", "available:terminal", "available:firefox", "available:steam"].map((s) => [`programs.${s}`, true]),
+          ),
+        };
         fake.onRestart = () => setTimeout(() => device.open(fake), 3000); // as if it came back
         if (new URLSearchParams(location.search).has("ask")) fake.ask = { delay: 4000, yes: true }; // ?fake&ask
         if (fakeParam === "later") connectFake = () => device.open(fake);

@@ -1,6 +1,7 @@
 import type { Action } from "./config";
 import { formatCombo } from "./keys";
 import { comboField, type OS } from "./mac";
+import { appPrograms, isOpenApp } from "./programs";
 
 // What a key can do, in words for people. Types and fields are in
 // d200-deck's docs/config.md.
@@ -22,10 +23,18 @@ export const actionTypes: ActionType[] = [
   { type: "back", name: "Go back" },
   { type: "home", name: "Go home" },
   { type: "open-url", name: "Open website", pc: true },
+  { type: "open-app", name: "Open app", pc: true },
   { type: "launch", name: "Open program", pc: true },
   { type: "http", name: "Web request", pc: true },
   { type: "app", name: "App", pc: true },
 ];
+
+// "Open app" keys are app actions (programs.ts); the editor offers them as
+// a type of their own. kind is an action's type as the editor offers it, and
+// realType the type a kind saves as.
+export const openApp = "open-app";
+export const kind = (a: Action) => (isOpenApp(a) ? openApp : (a.type ?? ""));
+export const realType = (t: string) => (t === openApp ? "app" : t);
 
 // What may go where (deck.validateAction).
 export const fallbackTypes = ["hid-key", "hid-consumer", "hid-system", "type-text", "macro"];
@@ -34,7 +43,11 @@ export const stepTypes = ["hid-key", "hid-consumer", "hid-system", "type-text", 
 // newAction is a new action of type t, ready to save where it can be:
 // the first app action, Play / pause, Sleep.
 export function newAction(t: string, apps: Record<string, string[]> = {}, from: Action = {}): Action {
-  const a: Action = t ? { type: t } : {};
+  const a: Action = t ? { type: realType(t) } : {};
+  if (t === openApp) {
+    a.app = appPrograms;
+    a.op = "open";
+  }
   if (t === "app") {
     a.app = Object.keys(apps)[0] ?? "discord";
     a.op = apps[a.app]?.[0] ?? "mute";
@@ -70,7 +83,12 @@ export const systemNames: Record<string, string> = {
   "wake-up": "Wake up",
 };
 
-export const appNames: Record<string, string> = { discord: "Discord", obs: "OBS", media: "Media player" };
+export const appNames: Record<string, string> = {
+  discord: "Discord",
+  obs: "OBS",
+  media: "Media player",
+  [appPrograms]: "Open app",
+};
 
 // Words for app ops, by app (d200-deck docs/discord.md, obs.md, media.md).
 const opNames: Record<string, string> = {

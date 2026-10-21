@@ -2,6 +2,7 @@
 <script lang="ts">
   import { actionTypes } from "../lib/actions";
   import { app } from "../lib/context";
+  import { isOpenApp } from "../lib/programs";
   import ActionEditor from "./ActionEditor.svelte";
   import KeyView from "./KeyView.svelte";
   import LookFields from "./LookFields.svelte";
@@ -12,7 +13,7 @@
   let button = $derived(doc.button(key));
   let win = $derived(model().windows[key]);
   // a look while on, where the device supports one (or the key has one, to remove)
-  let hasOn = $derived(button?.action.type === "app" && (!!button.on || (features()?.fields.includes("button.on") ?? true)));
+  let hasOn = $derived(button?.action.type === "app" && !isOpenApp(button.action) && (!!button.on || (features()?.fields.includes("button.on") ?? true)));
   let clip = $derived(doc.clip);
 
   function paste() {
@@ -60,7 +61,7 @@
     <LookFields look={button} {key} />
 
     <h3>When pressed</h3>
-    <ActionEditor bind:action={button.action} {types} label={null} />
+    <ActionEditor bind:action={button.action} {types} label={null} look={button} />
 
     {#if hasOn}
       <details class="on" open={!!button.on}>
