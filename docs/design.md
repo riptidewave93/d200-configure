@@ -117,6 +117,24 @@ A device without `features` gets the site's lists, and the older limits. A value
 config always shows. Before saving, `unsupportedMessage` refuses a config that uses what the device lacks.
 Gate a new option in the editor on its field or name.
 
+## Update notices
+
+The Device panel tells of a newer device OS or PC helper release (`releases.ts`), by the same rules
+as the PC helper's own notices (`cmd/deckhost/osupdate.go` in d200-deck):
+
+- It reads GitHub's latest release of d200-buildroot and d200-deck, and keeps each answer for 6 h in
+  the browser. Errors, GitHub's rate limit and being offline show nothing and aren't kept.
+- A release counts once its `SHA256SUMS` is uploaded, and for the device, once its
+  `d200-<tag>-<flavour>-update.tar` is too. It must be newer than what runs: git describe's
+  additions don't count, a release is newer than its pre-releases, and a version that isn't
+  `vX.Y.Z…` (a bare commit) never has a newer one.
+- The device's update file is linked directly; the browser can't fetch it itself, as GitHub's file
+  host doesn't allow it (CORS). The user picks it on the device's update page, or with the PC helper's
+  "Update device", mentioned only when the PC helper reports `update.device` in its state. On
+  Windows the PC helper's link is its installer, elsewhere the release page.
+- "Show update notices", saved in the browser, turns this off, e.g. for a fork's firmware: no
+  calls to GitHub, no notices. "Install an update file…" always stays.
+
 ## Pictures and fonts
 
 - **Pictures** are fitted when added (`wasm/fit`): scaled to where they're drawn, animated GIFs

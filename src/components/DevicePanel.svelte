@@ -5,6 +5,18 @@
   import { canAlign, nudge, offsetWords } from "../lib/align";
   import { message } from "../lib/device.svelte";
   import { hasCommand } from "../lib/features";
+  import {
+    hostRepo,
+    hostUpdate,
+    hostUpdatesDevice,
+    isVersion,
+    latest,
+    noticesOn,
+    osRepo,
+    osUpdate,
+    setNotices,
+    type Release,
+  } from "../lib/releases";
 
   // onreset: the device was erased and is restarting
   let { onreset }: { onreset?: () => void } = $props();
@@ -112,6 +124,20 @@
     e.preventDefault();
   }
   let host = $derived(device.host);
+
+  // newer releases on GitHub, unless update notices are off in this browser
+  let notices = $state(noticesOn());
+  let osRel = $state<Release | null>(null);
+  let hostRel = $state<Release | null>(null);
+  $effect(() => {
+    if (notices && isVersion(h?.os.version ?? "")) latest(osRepo).then((r) => (osRel = r));
+  });
+  $effect(() => {
+    if (notices && host?.connected && isVersion(host.version ?? "")) latest(hostRepo).then((r) => (hostRel = r));
+  });
+  let osUp = $derived(notices ? osUpdate(osRel, h?.os.version ?? "", h?.os.flavour) : null);
+  let hostUp = $derived(notices && host?.connected ? hostUpdate(hostRel, host.version ?? "", host.os) : null);
+  let updatePage = $derived(device.pageURL("/update"));
 </script>
 
 <svelte:window onkeydown={arrowKey} />
@@ -126,22 +152,45 @@
     <dt>Software</dt>
     <dd>
       <span title={software} oncopy={copySoftware}>{softwareShort}</span>
-      {#if device.pageURL("/update")}<a class="update" href={device.pageURL("/update")} target="_blank" rel="noreferrer"
-          >Update…</a
+      {#if updatePage && !osUp}<a class="update" href={updatePage} target="_blank" rel="noreferrer"
+          >Install an update file…</a
         >{/if}
     </dd>
     {#if h?.os.version}<dt>System</dt>
-      <dd>{h.os.version}{h.os.flavour ? ` (${h.os.flavour})` : ""}</dd>{/if}
+      <dd>
+        {h.os.version}{h.os.flavour ? ` (${h.os.flavour})` : ""}
+        {#if osUp}
+          <div class="notice">
+            <strong>{osUp.version} is out.</strong>
+            <a href={osUp.url}>Download update file</a>
+            {#if updatePage}· <a href={updatePage} target="_blank" rel="noreferrer">Open update page</a>{/if}
+          </div>
+          <p class="muted small hint">
+            {#if updatePage}
+              Choose the file there, then press Install on the device{hostUpdatesDevice(host)
+                ? ", or use Update device in the PC helper's menu"
+                : ""}.
+            {:else if hostUpdatesDevice(host)}
+              Then use Update device in the PC helper's menu.
+            {/if}
+          </p>
+        {/if}
+      </dd>{/if}
     <dt>PC helper</dt>
     <dd>
       {#if host?.connected}
-        Running{host.version ? `, ${host.version}` : ""}
+        Running{host.version ? `, ${host.version}` : ""}{#if hostUp}
+          {" · "}{hostUp.version} is out: <a href={hostUp.url} target="_blank" rel="noreferrer">Download</a>{/if}
       {:else}
         Not running. <a href={installURL} target="_blank" rel="noreferrer">Install it</a> for keys that open websites,
         programs or apps.
       {/if}
     </dd>
   </dl>
+  <label class="row check small notices">
+    <input type="checkbox" checked={notices} onchange={(e) => setNotices((notices = e.currentTarget.checked))} />
+    Show update notices
+  </label>
 
   {#if device.settings}
     {#if device.settings.brightness !== undefined}
@@ -269,6 +318,16 @@
   }
   .update {
     margin-left: 10px;
+  }
+  .notice {
+    margin-top: 2px;
+  }
+  .hint {
+    margin: 2px 0 0;
+  }
+  .notices {
+    color: var(--muted);
+    margin: -8px 0 16px;
   }
   .debug {
     margin: 12px 0 0;
