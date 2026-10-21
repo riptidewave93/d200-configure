@@ -151,7 +151,7 @@
   async function save(force = false) {
     error = notice = "";
     if (deck) {
-      const unknown = doc.tidy(deck);
+      const unknown = await doc.tidy(deck);
       if (unknown.length) {
         const names = unknown.map((n) => `"${n}"`).join(", ");
         error = `Can't save: no icon called ${names}.`;
@@ -223,8 +223,8 @@
     doc.open(deck.defaultConfig(), connected);
   }
 
-  function saveFile() {
-    if (deck) doc.tidy(deck); // so the file works on a device as it is
+  async function saveFile() {
+    if (deck) await doc.tidy(deck); // so the file works on a device as it is
     const blob = new Blob([JSON.stringify(doc.config, null, 2) + "\n"], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);

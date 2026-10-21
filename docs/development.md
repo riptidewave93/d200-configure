@@ -15,6 +15,7 @@
 | `make check` | Type checks |
 | `make test` | Unit tests |
 | `make build` | The site, into `dist/` |
+| `make icons` | Remakes `src/lib/icons.json`, the icon catalog, from `../d200-deck` (`DECK_DIR`) |
 | `make logos` | Remakes `src/lib/logos.json`, the app logos, after changing `scripts/logos.mjs` or an icon package |
 | `make fonts` | Downloads the font catalog into `public/fonts/`, after changing `src/lib/fontcatalog.json` |
 | `make clean` | Removes `dist/`, `node_modules/` and `.cache/` |

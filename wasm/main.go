@@ -3,10 +3,10 @@
 // as the device draws them. It sets a global "deck" object with:
 //
 //	validate(json) -> "" or why the device would refuse to save the config (deck.ParseStrict)
-//	embed(json) -> JSON {icons, unknown}: the icons the config's keys can show, from
-//	  those it has and the catalog, and the names found in neither
-//	setAssets(json) -> JSON: the config keys are drawn from (its icons embedded,
-//	  as embed does), and the icon names it lacks
+//	iconsUsed(json) -> JSON: the icon names the config's keys can show, sorted: their own,
+//	  their on looks' and their actions' built-in looks (deck.Config.IconsUsed)
+//	setAssets(json) -> JSON {} or {error}: the config keys are drawn from, with the icons
+//	  they show (the site embeds them from its catalog first)
 //	renderKey(i, buttonJSON, on) -> {width, height, data: RGBA pixels, next}, or null;
 //	  next is when the key's animation shows its next frame (Unix ms), or 0
 //	fitImage(bytes, width, height, maxBytes, animBytes, perPixel) -> JSON {data (base64), width,
@@ -27,8 +27,6 @@
 //	builtinFallback(actionJSON) -> JSON: what the device does instead while the PC helper
 //	  can't run the action (e.g. Discord mute presses Ctrl+Shift+M), or null
 //	layout -> JSON: {width, height, keys: [{x, y, w, h}]}, the key windows on the screen
-//	iconNames -> JSON: every icon in the catalog, sorted
-//	iconPath(name) -> {d, viewBox}: a catalog icon as SVG path data (nonzero fill), or null
 //	features -> JSON: what this version of the device software supports (deck.Features)
 //	defaultConfig -> JSON: the config a device uses without one
 //go:build js && wasm
@@ -47,7 +45,6 @@ import (
 
 	"github.com/riptidewave93/d200-deck/deck"
 	"github.com/riptidewave93/d200-deck/fonts"
-	"github.com/riptidewave93/d200-deck/icons"
 	"github.com/riptidewave93/d200-deck/render"
 
 	"github.com/riptidewave93/d200-configure/wasm/fit"
@@ -58,7 +55,7 @@ var renderer = render.New(&deck.Config{})
 func main() {
 	js.Global().Set("deck", map[string]any{
 		"validate":  js.FuncOf(validate),
-		"embed":     js.FuncOf(embed),
+		"iconsUsed": js.FuncOf(iconsUsed),
 		"setAssets": js.FuncOf(setAssets),
 		"renderKey": js.FuncOf(renderKey),
 		"fitImage":  js.FuncOf(fitImage),
@@ -86,8 +83,6 @@ func main() {
 			return marshal(a.FallbackAction())
 		}),
 		"layout":        layout(),
-		"iconNames":     marshal(icons.Names()),
-		"iconPath":      js.FuncOf(iconPath),
 		"features":      marshal(deck.Features()),
 		"defaultConfig": marshal(deck.DefaultConfig()),
 	})
@@ -104,37 +99,28 @@ func validate(_ js.Value, args []js.Value) any {
 	return ""
 }
 
-// embedded reads a config without checking it (it may be mid-edit) and
-// gives it the icons its keys can show.
-func embedded(s string) (*deck.Config, []string, error) {
+// iconsUsed reads a config without checking it (it may be mid-edit).
+func iconsUsed(_ js.Value, args []js.Value) any {
 	var c deck.Config
-	if err := json.Unmarshal([]byte(s), &c); err != nil {
-		return nil, nil, err
-	}
-	unknown := icons.Embed(&c)
-	if unknown == nil {
-		unknown = []string{}
-	}
-	return &c, unknown, nil
-}
-
-func embed(_ js.Value, args []js.Value) any {
-	c, unknown, err := embedded(args[0].String())
-	if err != nil {
+	if err := json.Unmarshal([]byte(args[0].String()), &c); err != nil {
 		return marshal(map[string]any{"error": err.Error()})
 	}
-	return marshal(map[string]any{"icons": c.Icons, "unknown": unknown})
+	names := c.IconsUsed()
+	if names == nil {
+		names = []string{}
+	}
+	return marshal(map[string]any{"names": names})
 }
 
 // setAssets switches drawing to a config, which drops the decoded images
 // and fonts.
 func setAssets(_ js.Value, args []js.Value) any {
-	c, unknown, err := embedded(args[0].String())
-	if err != nil {
+	var c deck.Config
+	if err := json.Unmarshal([]byte(args[0].String()), &c); err != nil {
 		return marshal(map[string]any{"error": err.Error()})
 	}
-	renderer.SetConfig(c)
-	return marshal(map[string]any{"unknown": unknown})
+	renderer.SetConfig(&c)
+	return marshal(map[string]any{})
 }
 
 // button reads a button for drawing. An action that doesn't parse (say, a
@@ -237,17 +223,6 @@ func fitImage(_ js.Value, args []js.Value) any {
 		"data": base64.StdEncoding.EncodeToString(p.Data), "width": p.Width, "height": p.Height,
 		"frames": p.Frames, "dropped": p.Dropped, "changed": p.Changed,
 	})
-}
-
-func iconPath(_ js.Value, args []js.Value) any {
-	if len(args) != 1 {
-		return nil
-	}
-	icon, ok := icons.Get(args[0].String())
-	if !ok || icon.D == "" {
-		return nil
-	}
-	return map[string]any{"d": icon.D, "viewBox": icon.ViewBox}
 }
 
 func layout() string {

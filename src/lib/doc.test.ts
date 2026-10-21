@@ -25,12 +25,12 @@ describe("Doc", () => {
     c.icons = { old: { d: "M0 0Z", viewBox: "0 0 1 1" } };
     c.images = { logo: "x", unused: "y" };
     d.load(c);
-    expect(d.tidy(deck)).toEqual([]);
+    expect(await d.tidy(deck)).toEqual([]);
     expect(Object.keys(d.config!.icons!)).toEqual(["mic"]);
     expect(Object.keys(d.config!.images!)).toEqual(["logo"]);
     delete d.config!.pages.main.keys["1"];
     delete d.config!.pages.main.keys["2"];
-    d.tidy(deck);
+    await d.tidy(deck);
     expect(d.config!.images).toBeUndefined();
     expect(d.config!.icons).toBeUndefined();
   });

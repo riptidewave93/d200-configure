@@ -3,7 +3,7 @@
 
 import "../wasm/wasm_exec.js";
 import wasmURL from "../wasm/deck.wasm?url";
-import type { Action, Button, Config, IconEntry, Look } from "./config";
+import type { Action, Button, Config, Look } from "./config";
 import type { Features } from "./features";
 import type { Layout } from "./layout";
 
@@ -36,12 +36,12 @@ export interface Fitted {
 export interface Deck {
   // validate is "" for a valid config, else why it isn't
   validate(config: Config | string): string;
-  // embed works out the icons a config's keys can show: those it has, and
-  // the rest from the catalog. unknown are names found in neither.
-  embed(config: Config): { icons: Record<string, IconEntry>; unknown: string[] };
-  // setAssets gives the config keys are drawn from (its icons, images and
-  // fonts); it returns the icon names it lacks
-  setAssets(config: Config): string[];
+  // iconsUsed are the icons a config's keys can show, sorted: their own,
+  // their on looks' and their actions' built-in looks
+  iconsUsed(config: Config): string[];
+  // setAssets gives the config keys are drawn from: its icons (see
+  // embedIcons), images and fonts
+  setAssets(config: Config): void;
   // renderKey draws key i as the device does; on draws its look while on
   renderKey(i: number, b: Button, on?: boolean): Pixels | null;
   // fitImage scales a picture down to width x height and maxBytes, and an
@@ -71,9 +71,6 @@ export interface Deck {
   builtinFallback(a: Action): Action | null;
   layout: Layout;
   features: Features; // the site's own: what its copy of the device code supports
-  icons: string[];
-  hasIcon(name: string): boolean; // in the catalog
-  iconPath(name: string): IconPath | null;
   defaultConfig(): Config;
 }
 
@@ -84,7 +81,7 @@ export interface IconPath {
 
 interface Exports {
   validate(json: string): string;
-  embed(json: string): string;
+  iconsUsed(json: string): string;
   setAssets(json: string): string;
   renderKey(i: number, json: string, on: boolean): Pixels | null;
   fitImage(b: Uint8Array, width: number, height: number, maxBytes: number, animBytes: number, perPixel: number): string;
@@ -97,8 +94,6 @@ interface Exports {
   fontLacks(base64: string, text: string): string;
   builtinFallback(json: string): string;
   layout: string;
-  iconNames: string;
-  iconPath(name: string): IconPath | null;
   features: string;
   defaultConfig: string;
 }
@@ -126,19 +121,16 @@ async function start(code?: BufferSource): Promise<Deck> {
   go.run(instance); // runs until the page closes
   const x = globalThis.deck;
   if (!x) throw new Error("The config checker didn't start.");
-  const icons: string[] = JSON.parse(x.iconNames);
-  const iconSet = new Set(icons);
   return {
     validate: (c) => x.validate(typeof c === "string" ? c : JSON.stringify(c)),
-    embed: (c) => {
-      const r = JSON.parse(x.embed(JSON.stringify(c)));
+    iconsUsed: (c) => {
+      const r = JSON.parse(x.iconsUsed(JSON.stringify(c)));
       if (r.error) throw new Error(r.error);
-      return { icons: r.icons ?? {}, unknown: r.unknown };
+      return r.names;
     },
     setAssets: (c) => {
       const r = JSON.parse(x.setAssets(JSON.stringify(c)));
       if (r.error) throw new Error(r.error);
-      return r.unknown;
     },
     renderKey: (i, b, on = false) => x.renderKey(i, JSON.stringify(b), on),
     fitImage: (b, w, h, max, anim) => {
@@ -159,9 +151,6 @@ async function start(code?: BufferSource): Promise<Deck> {
     animBytes: (s, w, h, p) => x.animBytes(s, w, h, p),
     pictureBox: (i, image, label) => x.pictureBox(i, image, label),
     layout: JSON.parse(x.layout),
-    icons,
-    hasIcon: (name) => iconSet.has(name),
-    iconPath: (name) => x.iconPath(name),
     features: JSON.parse(x.features),
     defaultConfig: () => JSON.parse(x.defaultConfig),
   };

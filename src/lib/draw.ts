@@ -4,13 +4,14 @@
 import type { Button } from "./config";
 import type { Deck, Pixels } from "./deck";
 import type { Doc } from "./doc.svelte";
+import { embedIcons, iconsReady } from "./icons.svelte";
 
 let assets = "";
 let page = "";
 
 // assetsKey changes when what keys are drawn from does: the icons keys
 // name (their own, their on looks, and app looks), the config's icons,
-// images and fonts. Sizes stand in for contents: comparing megabytes of
+// images and fonts, and the catalog once it's loaded. Sizes stand in for contents: comparing megabytes of
 // base64 on every redraw would be slow.
 function assetsKey(doc: Doc): string {
   const c = doc.config;
@@ -23,13 +24,16 @@ function assetsKey(doc: Doc): string {
       names.push(b.icon ?? "", b.on?.icon ?? "", b.action?.type === "app" ? `${b.action.app}.${b.action.op}` : "");
     }
   }
-  return [doc.loads, ...names, "|", ...sizes(c.icons), "|", ...sizes(c.images), "|", ...sizes(c.fonts)].join(",");
+  return [doc.loads, iconsReady(), ...names, "|", ...sizes(c.icons), "|", ...sizes(c.images), "|", ...sizes(c.fonts)].join(",");
 }
 
 export function drawKey(deck: Deck, doc: Doc, key: number, b: Button, on = false): Pixels | null {
   const k = assetsKey(doc);
   if (k !== assets && doc.config) {
-    deck.setAssets(doc.config);
+    // the icons keys show that the config lacks come from the catalog;
+    // while it loads they're drawn without
+    const icons = embedIcons(deck, doc.config)?.icons ?? doc.config.icons;
+    deck.setAssets({ ...doc.config, icons });
     assets = k;
   }
   if (doc.page !== page) {
