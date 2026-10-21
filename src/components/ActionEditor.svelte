@@ -1,6 +1,6 @@
 <!-- What a key does. Also used for macro steps and fallbacks, with fewer types. -->
 <script lang="ts">
-  import type { Action } from "../lib/config";
+  import type { Action, Look } from "../lib/config";
   import {
     appNames,
     argNames,
@@ -9,10 +9,13 @@
     fallbackTypes,
     isPC,
     joinCommand,
+    kind,
     maxSongCycle,
     newAction,
     opArgs,
     opName,
+    openApp,
+    realType,
     splitCommand,
     stepTypes,
     songShows,
@@ -23,15 +26,21 @@
   } from "../lib/actions";
   import { app } from "../lib/context";
   import { set } from "../lib/edit";
+  import { loadLogos } from "../lib/logos";
+  import { appPrograms, giveLook, program, type Program } from "../lib/programs";
   import ActionEditor from "./ActionEditor.svelte";
   import ComboField from "./ComboField.svelte";
+  import ProgramPicker from "./ProgramPicker.svelte";
   import { comboField, macKeys } from "../lib/mac";
 
+  // look: the key's, which an "Open app" key without one of its own takes
+  // from the app
   let {
     action = $bindable(),
     types,
     label = "Does",
-  }: { action: Action; types: string[]; label?: string | null } = $props();
+    look,
+  }: { action: Action; types: string[]; label?: string | null; look?: Look } = $props();
 
   const { doc, device, deck, features } = app();
   // what the device supports, plus what this action already has, so the
@@ -42,12 +51,14 @@
   let combo = $derived(comboField(action, device.os, mac));
   const plus = (l: string[] | undefined, v: unknown) =>
     l && typeof v === "string" && v && !l.includes(v) ? [...l, v] : l;
-  let offered = $derived(types.filter((t) => !t || !f || f.actions.includes(t) || t === action.type));
+  let offered = $derived(types.filter((t) => !t || !f || f.actions.includes(realType(t)) || t === kind(action)));
   let known = $derived(new Set([...(f?.keys ?? []), ...(f?.modifiers ?? [])]));
   let apps = $derived.by(() => {
     const a: Record<string, string[]> = { ...(f?.apps ?? {}) };
     if (action.app) a[action.app] = plus(a[action.app] ?? [], action.op)!;
-    return Object.fromEntries(Object.entries(a).filter(([k, ops]) => ops.length || k === action.app));
+    return Object.fromEntries(
+      Object.entries(a).filter(([k, ops]) => k !== appPrograms && (ops.length || k === action.app)),
+    );
   });
   // an app's args the device knows; one it doesn't know the app of takes any
   const argOK = (name: string) => !f?.args[action.app ?? ""] || f.args[action.app!].includes(name) || action.args?.[name] !== undefined;
@@ -74,6 +85,12 @@
 
   function setType(t: string) {
     action = newAction(t, apps, action);
+  }
+
+  async function pickProgram(p: Program) {
+    const was = program(action.args?.id);
+    action.args = { id: p.id };
+    if (look && doc.config) giveLook(doc.config, look, p, was, await loadLogos().catch(() => []));
   }
 
   // another app: its first op, and none of the last one's args
@@ -128,7 +145,7 @@
 
 <label>
   {#if label}<span>{label}</span>{/if}
-  <select value={action.type ?? ""} onchange={(e) => setType(e.currentTarget.value)} aria-label={label ?? "Action"}>
+  <select value={kind(action)} onchange={(e) => setType(e.currentTarget.value)} aria-label={label ?? "Action"}>
     {#if offered.some((t) => !isPC(t))}
       <optgroup label="On the device">
         {#each offered.filter((t) => !isPC(t)) as t (t)}<option value={t}>{typeName(t)}</option>{/each}
@@ -275,6 +292,8 @@
     <span>Body</span>
     <textarea rows="3" bind:value={() => action.body ?? "", (v) => set(action, "body", v)}></textarea>
   </label>
+{:else if kind(action) === openApp}
+  <ProgramPicker value={action.args?.id as string | undefined} onpick={pickProgram} />
 {:else if action.type === "app"}
   <div class="row">
     <select value={action.app} onchange={(e) => setApp(e.currentTarget.value)} aria-label="App">

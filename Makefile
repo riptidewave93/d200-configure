@@ -68,9 +68,11 @@ deck-source :
 check : node_modules wasm
 	$(RUN) $(NODE_IMAGE) npx svelte-check --fail-on-warnings
 
-# Unit tests: the site's, then the Go ones (picture fitting)
+# Unit tests: the site's, then the Go ones (picture fitting). The site's check its "Open app" list
+# against d200-deck's docs.
 test : node_modules wasm
-	$(RUN) $(NODE_IMAGE) npx vitest run
+	$(RUN) $(if $(DOCKER),-v "$(abspath $(DECK_DIR))":/deck:ro$(COMMA)z) $(NODE_IMAGE) \
+		env DECK_DIR=$(if $(DOCKER),/deck,$(abspath $(DECK_DIR))) npx vitest run
 	$(GO) go test -C wasm ./fit/
 
 # The site, into ./dist
