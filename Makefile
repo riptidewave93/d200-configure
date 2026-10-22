@@ -1,8 +1,8 @@
 # Everything runs in containers (Node, and TinyGo for the WebAssembly part), so any host with
 # Docker (and CI) builds the same way.
 # DOCKER= uses the host's Node, Go and TinyGo instead: make test DOCKER=
-NODE_IMAGE ?= node:24.22.0-bookworm-slim
-GO_IMAGE ?= golang:1.27.0-bookworm
+NODE_IMAGE ?= node:24.22.1-bookworm-slim
+GO_IMAGE ?= golang:1.27.3-bookworm
 # TinyGo makes the WebAssembly part about a third smaller than Go does
 TINYGO_IMAGE ?= tinygo/tinygo:0.43.0
 DOCKER ?= docker
