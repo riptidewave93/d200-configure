@@ -115,7 +115,14 @@ export interface Settings {
   // device keys only send key events, no actions: while the site is open
   // and seen; not saved, and it ends by itself if not sent again
   editing?: boolean;
+  // the screen's panel: picked at start ("auto") or set; the device restarts
+  // to apply a change. panel_active, read only, is the one in use. Absent on
+  // older software.
+  panel?: "auto" | Panel;
+  panel_active?: Panel;
 }
+
+export type Panel = "h1" | "h3";
 
 export interface Offset {
   x: number;

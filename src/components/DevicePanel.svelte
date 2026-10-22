@@ -103,6 +103,23 @@
     }
   }
 
+  // Display panel: only for a screen that looks wrong; the device restarts
+  async function setPanel(e: Event & { currentTarget: HTMLSelectElement }) {
+    const select = e.currentTarget;
+    const was = device.settings?.panel ?? "auto";
+    if (!confirm("The device restarts to apply this.")) {
+      select.value = was;
+      return;
+    }
+    error = "";
+    try {
+      await device.setPanel(select.value as typeof was);
+    } catch (err) {
+      select.value = was;
+      error = message(err);
+    }
+  }
+
   let flashed = $state(false);
   async function flash() {
     error = "";
@@ -273,6 +290,20 @@
       </form>
     {/if}
     {#if usb}<p class="muted">Changing the USB settings reconnects the device.</p>{/if}
+    {#if device.settings.panel !== undefined}
+      <label>
+        <span>Display panel</span>
+        <select value={device.settings.panel} onchange={setPanel}>
+          <option value="auto">Auto</option>
+          <option value="h1">H1</option>
+          <option value="h3">H3</option>
+        </select>
+        <span class="panel-hint">
+          {device.settings.panel_active ? `${device.settings.panel_active.toUpperCase()} in use. ` : ""}Change it only if
+          the screen looks wavy or stretched. The device restarts.
+        </span>
+      </label>
+    {/if}
   {/if}
   {#if error}<p class="bad">{error}</p>{/if}
 
@@ -328,6 +359,9 @@
   .notices {
     color: var(--muted);
     margin: -8px 0 16px;
+  }
+  .panel-hint {
+    margin: 4px 0 0;
   }
   .debug {
     margin: 12px 0 0;
