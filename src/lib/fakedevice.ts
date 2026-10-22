@@ -48,6 +48,8 @@ export class FakeDevice implements Transport {
     screen_offset_max: { x: 31, y: 2 },
     screen_pattern: false,
     editing: false,
+    panel: "auto",
+    panel_active: "h1",
   };
   settingsChanges: Settings[] = [];
   config: Uint8Array;
@@ -144,8 +146,18 @@ export class FakeDevice implements Transport {
         }
         if (change.sleep_screen !== undefined && !["zzz", "off"].includes(change.sleep_screen))
           return [Status.Failed, bytes('sleep_screen must be "zzz" or "off"')];
+        if (change.panel !== undefined && !["auto", "h1", "h3"].includes(change.panel))
+          return [Status.Failed, bytes('panel must be "auto", "h1" or "h3"')];
+        const restart = change.panel !== undefined && change.panel !== this.settingsState.panel;
         if (p.length > 0) this.settingsChanges.push(change);
         Object.assign(this.settingsState, change);
+        if (restart) {
+          const panel = this.settingsState.panel;
+          setTimeout(() => {
+            this.settingsState.panel_active = panel === "auto" ? "h1" : panel;
+            this.onRestart?.();
+          }, 0);
+        }
         const s = this.settingsState;
         if (s.brightness !== undefined) s.brightness = Math.min(100, Math.max(s.brightness_min ?? 0, s.brightness));
         const clamp = (v: number, lo = v, hi = v) => Math.min(hi, Math.max(lo, v));

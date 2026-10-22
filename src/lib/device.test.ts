@@ -94,6 +94,33 @@ describe("device", () => {
     await d.disconnect();
   });
 
+  it("sets the display panel, then reconnects once the device has restarted with it", async () => {
+    const fake = new FakeDevice();
+    const d = new Device();
+    fake.onRestart = () => setTimeout(() => d.open(fake), 10); // back after its reply
+    await d.open(fake);
+    expect(d.settings).toMatchObject({ panel: "auto", panel_active: "h1" });
+    await d.setPanel("auto"); // unchanged: no restart
+    expect([fake.settingsChanges, d.state]).toEqual([[], "ready"]);
+    await expect(d.setPanel("h2" as "h1")).rejects.toThrow('panel must be "auto", "h1" or "h3"');
+    expect(d.state).toBe("ready");
+
+    await d.setPanel("h3");
+    expect(fake.settingsChanges).toEqual([{ panel: "h3" }]);
+    expect(d.state).toBe("reconnecting");
+    await vi.waitFor(() => expect(d.state).toBe("ready"));
+    expect(d.settings).toMatchObject({ panel: "h3", panel_active: "h3" });
+    await d.disconnect();
+
+    // older software doesn't say: nothing to show
+    const old = new FakeDevice();
+    delete old.settingsState.panel;
+    delete old.settingsState.panel_active;
+    await d.open(old);
+    expect(d.settings).not.toHaveProperty("panel");
+    await d.disconnect();
+  });
+
   it("tells a device that takes it which computer this is, on connecting", async () => {
     const fake = () => {
       const f = new FakeDevice();

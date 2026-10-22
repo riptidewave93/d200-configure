@@ -36,7 +36,7 @@ const changeGap = 100;
 // the device holds their actions while told so, and stops a while after
 // the last time it was told, so it's told again often.
 const editingRefresh = 3_000;
-// A device restarting after a reset is back in about 35 s.
+// A restarting device is back in about 35 s.
 const restartWait = 90_000;
 // The alignment pattern ends by itself a minute after the last change, so
 // it's sent again while it shows.
@@ -370,6 +370,19 @@ export class Device {
     } finally {
       this.asking = "";
     }
+    this.restarting();
+  }
+
+  // setPanel sets the screen's panel; the device restarts to apply it, and
+  // is reconnected when it's back.
+  async setPanel(panel: NonNullable<Settings["panel"]>) {
+    if (panel === this.settings?.panel) return;
+    await this.change({ panel });
+    this.restarting();
+  }
+
+  // restarting waits for the device to come back, as after a re-plug.
+  private restarting() {
     clearInterval(this.poll);
     clearInterval(this.clock);
     clearInterval(this.pattern);

@@ -84,6 +84,8 @@ It's built with TinyGo, so:
   closing the panel and when the page closes.
 - Reset device waits for a press on the device, which then restarts without an event: the site goes
   back to the start screen and reconnects, giving up after 90 s.
+- A new display `panel` restarts the device once it replies. The site keeps the config being edited
+  and reconnects as after a re-plug, giving up after 90 s.
 - `host_os` is set on connect to the browser's computer, if it changed and the PC helper isn't
   connected. On a Mac the editor shows and edits a combo's `mac_keys` where it has them, else
   `keys`; a device without `action.mac_keys` is sent the config without them.
