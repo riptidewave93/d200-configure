@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Action, Button, Config, Look } from "./config";
 import { load } from "./deck";
-import type { Features } from "./features";
+import { runnable, type Features } from "./features";
 import { embedAll } from "./icons.svelte";
 import icons from "./icons.json";
 import logos from "./logos.json";
@@ -52,6 +52,13 @@ describe("meetings", () => {
     expect(offered(find("zoom", "Mic"), null)).toBe(true);
     expect(forPage("zoom", withoutMic).map((s) => s.app)).not.toContain("mic");
     expect(forPage("zoom", withMic).at(-1)).toBe(find("mic", "PC Mic"));
+  });
+
+  it("offers no mic keys while the PC helper lacks them", async () => {
+    const d = await load(readFileSync(new URL("../wasm/deck.wasm", import.meta.url)));
+    const host = (apps: string[]) => ({ connected: true, apps: apps.map((name) => ({ name, title: name, ops: ["mute"] })) });
+    expect(forPage("zoom", runnable(d.features, host(["discord"]))).map((s) => s.app)).not.toContain("mic");
+    expect(forPage("zoom", runnable(d.features, host(["discord", "mic"]))).at(-1)).toBe(find("mic", "PC Mic"));
   });
 });
 
