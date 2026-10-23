@@ -104,10 +104,8 @@ against the maker's shortcut page (the file links each).
   settings; Meet's can't.
 - A key combo can't show whether you're muted: the device hears nothing back from the app. The mic
   key can, but the call app still shows you as unmuted.
-- Mic keys are offered only where the device or PC helper runs them, and get their looks (`mic`,
-  and `mic_off` on red while muted) on the key: older devices don't have them built in.
-- The editor knows a ready-made key by both combos, to show its notes. One combo can be several:
-  Space is push to talk in both apps.
+- Mic keys are offered like other app keys, and get their looks (`mic`, and `mic_off` on red while
+  muted) on the key: older devices don't have them built in.
 
 ## Saving
 
