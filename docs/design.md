@@ -31,6 +31,7 @@ What to know before changing the site. The protocol and config format are d200-d
 | `src/lib/icons.svelte.ts` | The icon catalog, and copying the icons keys use into the config |
 | `src/lib/logos.ts` | The app logos, and a key's colours for one |
 | `src/lib/mac.ts` | Mac key combos, and telling the device which computer it's on |
+| `src/lib/meetings.ts` | Ready-made key combos for Zoom and Google Meet |
 | `src/lib/align.ts` | Align screen |
 | `src/lib/models.ts` | The kinds of device: keys and face |
 | `src/lib/fakedevice.ts` | An in-memory device, for tests and `?fake` |
@@ -89,6 +90,20 @@ It's built with TinyGo, so:
 - `host_os` is set on connect to the browser's computer, if it changed and the PC helper isn't
   connected. On a Mac the editor shows and edits a combo's `mac_keys` where it has them, else
   `keys`; a device without `action.mac_keys` is sent the config without them.
+
+## Meeting shortcuts
+
+`src/lib/meetings.ts` lists ready-made key combos for calls, each with `keys` and, where a Mac's
+differ, `mac_keys`, so one key works on every computer once the device knows it's on a Mac
+(`host_os`, above). The Key combo editor offers them under Ready-made; a page's panel puts an app's
+set on the page's empty keys. Another app needs only its entry and shortcuts, checked against the
+maker's shortcut page (the file links each).
+
+- They work only while the app, or Meet's tab, is in front. Zoom's can be made global in its
+  settings; Meet's can't.
+- A key can't show whether you're muted: the device hears nothing back from the app.
+- The editor knows a ready-made key by both combos, to show its notes. One combo can be several:
+  Space is push to talk in both apps.
 
 ## Saving
 

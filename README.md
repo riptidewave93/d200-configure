@@ -8,6 +8,8 @@ Set up your Ulanzi D200's keys from your browser: **https://riptidewave93.github
   you like
 - Keys that press a key combo or media key, type text, run a macro or open another page; with the
   PC helper, keys that open a website or program, or control Discord, OBS or your music player
+- Ready-made keys for Zoom and Google Meet calls (mute, camera, raise hand, push to talk and
+  more), each working on Windows, Linux and Mac
 - A preview of each key as the D200 shows it, and a warning when a page has more animation than the
   D200 can play
 - Press a key on the D200 to pick it here; while the site's tab is in front, keys don't run their

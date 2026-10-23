@@ -1,8 +1,12 @@
-<!-- The page shown, when no key is selected: its name, which keys open it, home and delete. -->
+<!-- The page shown, when no key is selected: its name, which keys open it, meeting keys, home and delete. -->
 <script lang="ts">
+  import { app } from "../lib/context";
   import type { Doc } from "../lib/doc.svelte";
+  import { loadLogos } from "../lib/logos";
+  import { fillPage, meetingApps } from "../lib/meetings";
 
   let { doc }: { doc: Doc } = $props();
+  const { model } = app();
 
   let name = $state("");
   let input: HTMLInputElement;
@@ -27,6 +31,12 @@
       return;
     }
     doc.renamePage(doc.page, name);
+  }
+
+  let full = $state("");
+  async function fill(id: string) {
+    const logos = await loadLogos().catch(() => []);
+    full = fillPage(doc.config!, doc.page, model().windows.length, id, logos) ? "" : "No empty keys, or they're all here already.";
   }
 
   function remove() {
@@ -72,6 +82,14 @@
   {:else if !home}
     <p class="muted">Set a key to Open page to reach it.</p>
   {/if}
+
+  <h3>Meeting keys</h3>
+  <div class="row">
+    {#each meetingApps as m (m.id)}
+      <button class="plain" title="Put {m.title}'s shortcuts on the empty keys" onclick={() => fill(m.id)}>+ {m.title}</button>
+    {/each}
+  </div>
+  {#if full}<p class="muted small">{full}</p>{/if}
 
   {#if !home}
     <div class="row actions">
