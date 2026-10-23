@@ -1,4 +1,4 @@
-<!-- The page shown, when no key is selected: its name, which keys open it, meeting keys, home and delete. -->
+<!-- The page shown, when no key is selected: its name, which keys open it, home, meeting keys and delete. -->
 <script lang="ts">
   import { app } from "../lib/context";
   import type { Doc } from "../lib/doc.svelte";
@@ -85,20 +85,19 @@
     <p class="muted">Set a key to Open page to reach it.</p>
   {/if}
 
-  <h3>Meeting keys</h3>
-  <div class="row">
+  <div class="row actions">
+    {#if !home}
+      <button class="plain" onclick={() => (doc.config!.home = doc.page)}>Show at start</button>
+    {/if}
     {#each pageApps as m (m.id)}
       <button class="plain" title="Put {m.title}'s shortcuts on the empty keys" onclick={() => fill(m.id)}>+ {m.title}</button>
     {/each}
+    {#if !home}
+      <span class="grow"></span>
+      <button class="quiet danger" onclick={remove}>Delete page</button>
+    {/if}
   </div>
   {#if full}<p class="muted small">{full}</p>{/if}
-
-  {#if !home}
-    <div class="row actions">
-      <button class="plain" onclick={() => (doc.config!.home = doc.page)}>Show at start</button>
-      <button class="quiet danger" onclick={remove}>Delete page</button>
-    </div>
-  {/if}
 </section>
 
 <style>
@@ -126,7 +125,6 @@
     margin-top: 14px;
     padding-top: 10px;
     border-top: 1px solid var(--line);
-    justify-content: space-between;
   }
   .danger:hover:not(:disabled) {
     color: var(--bad);
