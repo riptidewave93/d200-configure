@@ -31,6 +31,7 @@ What to know before changing the site. The protocol and config format are d200-d
 | `src/lib/icons.svelte.ts` | The icon catalog, and copying the icons keys use into the config |
 | `src/lib/logos.ts` | The app logos, and a key's colours for one |
 | `src/lib/mac.ts` | Mac key combos, and telling the device which computer it's on |
+| `src/lib/meetings.ts` | Ready-made keys for Zoom, Google Meet and the PC's mic |
 | `src/lib/align.ts` | Align screen |
 | `src/lib/models.ts` | The kinds of device: keys and face |
 | `src/lib/fakedevice.ts` | An in-memory device, for tests and `?fake` |
@@ -90,6 +91,22 @@ It's built with TinyGo, so:
   connected. On a Mac the editor shows and edits a combo's `mac_keys` where it has them, else
   `keys`; a device without `action.mac_keys` is sent the config without them.
 
+## Meeting shortcuts
+
+`src/lib/meetings.ts` lists ready-made keys for calls. Most are key combos with `keys` and, where a
+Mac's differ, `mac_keys`, so one key works on every computer once the device knows it's on a Mac
+(`host_os`, above). The PC helper's mic keys (`mic` app) mute the PC's mic for every app. The
+editor offers them under Ready-made, for a new key or a key combo; a page's panel puts an app's set,
+and the mic mute, on the page's empty keys. Another app needs only its entry and shortcuts, checked
+against the maker's shortcut page (the file links each).
+
+- They work only while the app, or Meet's tab, is in front. Zoom's can be made global in its
+  settings; Meet's can't.
+- A key combo can't show whether you're muted: the device hears nothing back from the app. The mic
+  key can, but the call app still shows you as unmuted.
+- Mic keys are offered like other app keys, and get their looks (`mic`, and `mic_off` on red while
+  muted) on the key: older devices don't have them built in.
+
 ## Saving
 
 1. On connect the site reads the config and keeps its rev (SHA-256).
@@ -111,7 +128,7 @@ lists what the device's software supports. The site offers what's in both that a
 | Part | Offered |
 |---|---|
 | Action types; key, media key, system and font names; fields such as `button.on` | In both lists |
-| App actions and their settings | The device's list, or all for an app it doesn't know; while the PC helper is connected, only what it runs |
+| App actions and their settings | The device's list, or all for an app it doesn't know; while the PC helper is connected, only what it runs, plus its apps neither list has |
 | Newer settings such as `editing`, and requests such as `reset` | Only what the device lists |
 | Limits | The smaller of the two. Without `config_bytes` a device takes 2 MB; without `anim_bytes`, the older GIF budget |
 

@@ -254,6 +254,7 @@
           apps: [
             { name: "discord", title: "Discord" },
             { name: "programs", title: "Open app", status: "4 apps found", ops: ["open"] },
+            { name: "mic", title: "Mic", status: "on", ops: ["mute", "push-to-talk"] },
           ],
           state: Object.fromEntries(
             ["ready", "available:files", "available:terminal", "available:firefox", "available:steam"].map((s) => [`programs.${s}`, true]),

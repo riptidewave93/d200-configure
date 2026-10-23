@@ -87,10 +87,17 @@ describe("features", () => {
   });
 
   it("offers app actions the PC helper runs, while it's connected", () => {
-    const host = { connected: true, apps: [{ name: "discord", title: "Discord", ops: ["deafen"] }] };
+    const host = {
+      connected: true,
+      apps: [
+        { name: "discord", title: "Discord", ops: ["deafen"] },
+        { name: "mic", title: "Mic", ops: ["mute"] }, // the PC helper's own, newer than the site and device
+      ],
+    };
     const f = runnable(site, host);
     expect(f.apps.discord).toEqual(["deafen"]);
     expect(f.apps.media).toEqual([]);
+    expect(f.apps.mic).toEqual(["mute"]);
     expect(runnable(site, { connected: false })).toBe(site);
   });
 

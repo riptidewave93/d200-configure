@@ -32,6 +32,8 @@
   import ComboField from "./ComboField.svelte";
   import ProgramPicker from "./ProgramPicker.svelte";
   import { comboField, macKeys } from "../lib/mac";
+  import { formatCombo } from "../lib/keys";
+  import { giveShortcut, matching, meetingApp, meetingApps, offered as canGive, shortcuts } from "../lib/meetings";
 
   // look: the key's, which an "Open app" key without one of its own takes
   // from the app
@@ -40,7 +42,7 @@
     types,
     label = "Does",
     look,
-  }: { action: Action; types: string[]; label?: string | null; look?: Look } = $props();
+  }: { action: Action; types: string[]; label?: string | null; look?: Look & { on?: Look } } = $props();
 
   const { doc, device, deck, features } = app();
   // what the device supports, plus what this action already has, so the
@@ -49,6 +51,17 @@
   // a key combo shows, and edits, the combo for this computer
   let mac = $derived(macKeys(f));
   let combo = $derived(comboField(action, device.os, mac));
+  // the combo on the other kind of computer, when it differs
+  let otherCombo = $derived(
+    action.type !== "hid-key" || !action.mac_keys
+      ? ""
+      : combo === "mac_keys"
+        ? `Windows and Linux: ${formatCombo(action.keys)}`
+        : `Mac: ${formatCombo(action.mac_keys)}`,
+  );
+  let meeting = $derived(matching(action));
+  // ready-made keys: for the key itself, not a step or fallback
+  let readyMade = $derived(!!look && (!action.type || action.type === "hid-key" || meeting.length > 0));
   const plus = (l: string[] | undefined, v: unknown) =>
     l && typeof v === "string" && v && !l.includes(v) ? [...l, v] : l;
   let offered = $derived(types.filter((t) => !t || !f || f.actions.includes(realType(t)) || t === kind(action)));
@@ -91,6 +104,11 @@
     const was = program(action.args?.id);
     action.args = { id: p.id };
     if (look && doc.config) giveLook(doc.config, look, p, was, await loadLogos().catch(() => []));
+  }
+
+  async function pickShortcut(i: number) {
+    const logos = await loadLogos().catch(() => []);
+    giveShortcut(action, look ?? {}, shortcuts[i], logos);
   }
 
   // another app: its first op, and none of the last one's args
@@ -159,8 +177,30 @@
   </select>
 </label>
 
+{#if readyMade}
+  <select
+    value=""
+    onchange={(e) => {
+      pickShortcut(Number(e.currentTarget.value));
+      e.currentTarget.value = "";
+    }}
+    aria-label="Ready-made"
+    class="ready"
+  >
+    <option value="" disabled>Ready-made…</option>
+    {#each meetingApps as m (m.id)}
+      {#if shortcuts.some((s) => s.app === m.id && canGive(s, f))}
+        <optgroup label={m.title}>
+          {#each shortcuts as s, i (i)}{#if s.app === m.id && canGive(s, f)}<option value={i}>{s.title}</option>{/if}{/each}
+        </optgroup>
+      {/if}
+    {/each}
+  </select>
+{/if}
+
 {#if action.type === "hid-key"}
   <ComboField keys={action[combo]} {known} onchange={(k) => set(action, combo, k)} />
+  {#if otherCombo}<p class="muted small">{otherCombo}</p>{/if}
 {:else if action.type === "hid-consumer"}
   <select
     value={usageNumber ? "number" : action.usage}
@@ -336,6 +376,12 @@
   {/if}
 {/if}
 
+{#if look}
+  {#each meeting as s (s.app)}
+    <p class="muted small">{meetingApp(s.app)?.note}{s.note ? ` ${s.note}` : ""}</p>
+  {/each}
+{/if}
+
 {#if isPC(action.type) && helperMissing}
   <p class="muted">
     {!device.host?.connected
@@ -374,6 +420,9 @@
   }
   .method {
     width: auto;
+  }
+  .ready {
+    margin-bottom: 8px;
   }
   .fallback {
     margin-top: 12px;

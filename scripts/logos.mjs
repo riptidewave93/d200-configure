@@ -24,7 +24,7 @@ const version = (pkg) => JSON.parse(fs.readFileSync(`node_modules/${pkg}/package
 // Simple Icons, by group
 const simple = {
   Browsers: ["googlechrome", "firefoxbrowser", "brave", "opera", "vivaldi"],
-  Chat: ["telegram", "whatsapp", "signal", "zoom"],
+  Chat: ["telegram", "whatsapp", "signal", "zoom", "googlemeet"],
   Games: ["steam", "epicgames", "battledotnet", "gogdotcom", "ea", "ubisoft", "riotgames", "roblox", "nvidia"],
   Media: ["spotify", "vlcmediaplayer", "plex", "kodi"],
   Creative: ["elgato", "davinciresolve", "blender", "gimp", "krita", "audacity", "figma"],

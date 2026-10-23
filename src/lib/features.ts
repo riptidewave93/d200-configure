@@ -67,11 +67,14 @@ export function older(site: Features): Features {
 // release, e.g. "reset".
 export const hasCommand = (device: Features | null | undefined, name: string) => !!device?.commands?.includes(name);
 
-// runnable cuts app ops to those the PC helper runs, while it's connected.
+// runnable cuts app ops to those the PC helper runs, while it's connected,
+// and adds its apps neither the site nor the device knows: the device
+// passes any app's actions on to it.
 export function runnable(f: Features, host?: HostInfo | null): Features {
   if (!host?.connected || !host.apps) return f;
   const ops = Object.fromEntries(host.apps.map((a) => [a.name, a.ops ?? f.apps[a.name] ?? []]));
-  return { ...f, apps: Object.fromEntries(Object.entries(f.apps).map(([app, l]) => [app, both(l, ops[app] ?? [])])) };
+  const known = Object.entries(f.apps).map(([app, l]) => [app, both(l, ops[app] ?? [])]);
+  return { ...f, apps: { ...ops, ...Object.fromEntries(known) } };
 }
 
 // newer is whether the device supports things the site doesn't know: the

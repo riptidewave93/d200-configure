@@ -1,8 +1,14 @@
-<!-- The page shown, when no key is selected: its name, which keys open it, home and delete. -->
+<!-- The page shown, when no key is selected: its name, which keys open it, home, meeting keys and delete. -->
 <script lang="ts">
+  import { app } from "../lib/context";
   import type { Doc } from "../lib/doc.svelte";
+  import { loadLogos } from "../lib/logos";
+  import { fillPage, forPage, meetingApps } from "../lib/meetings";
 
   let { doc }: { doc: Doc } = $props();
+  const { model, features } = app();
+  // the mic app isn't a page of its own; it joins the others' pages
+  const pageApps = meetingApps.filter((m) => m.id !== "mic");
 
   let name = $state("");
   let input: HTMLInputElement;
@@ -27,6 +33,14 @@
       return;
     }
     doc.renamePage(doc.page, name);
+  }
+
+  let full = $state("");
+  async function fill(id: string) {
+    const logos = await loadLogos().catch(() => []);
+    // the square keys: the wide one is last
+    const keys = model().windows.filter((r) => r.w <= r.h).length;
+    full = fillPage(doc.config!, doc.page, keys, forPage(id, features()), logos) ? "" : "No empty keys, or they're all here already.";
   }
 
   function remove() {
@@ -73,12 +87,19 @@
     <p class="muted">Set a key to Open page to reach it.</p>
   {/if}
 
-  {#if !home}
-    <div class="row actions">
+  <div class="row actions">
+    {#if !home}
       <button class="plain" onclick={() => (doc.config!.home = doc.page)}>Show at start</button>
+    {/if}
+    {#each pageApps as m (m.id)}
+      <button class="plain" title="Put {m.title}'s shortcuts on the empty keys" onclick={() => fill(m.id)}>+ {m.title}</button>
+    {/each}
+    {#if !home}
+      <span class="grow"></span>
       <button class="quiet danger" onclick={remove}>Delete page</button>
-    </div>
-  {/if}
+    {/if}
+  </div>
+  {#if full}<p class="muted small">{full}</p>{/if}
 </section>
 
 <style>
@@ -106,7 +127,6 @@
     margin-top: 14px;
     padding-top: 10px;
     border-top: 1px solid var(--line);
-    justify-content: space-between;
   }
   .danger:hover:not(:disabled) {
     color: var(--bad);
