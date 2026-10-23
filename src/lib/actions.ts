@@ -87,6 +87,7 @@ export const appNames: Record<string, string> = {
   discord: "Discord",
   obs: "OBS",
   media: "Media player",
+  mic: "Mic",
   [appPrograms]: "Open app",
 };
 
@@ -123,6 +124,8 @@ const opNames: Record<string, string> = {
   "media.shuffle": "Shuffle",
   "media.repeat": "Repeat",
   "media.now-playing": "Now playing",
+  "mic.mute": "Mute (all apps)",
+  "mic.push-to-talk": "Push to talk (all apps)",
 };
 
 export const opName = (app = "", op = "") => opNames[`${app}.${op}`] ?? op;

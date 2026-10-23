@@ -33,7 +33,7 @@
   import ProgramPicker from "./ProgramPicker.svelte";
   import { comboField, macKeys } from "../lib/mac";
   import { formatCombo } from "../lib/keys";
-  import { giveShortcut, matching, meetingApp, meetingApps, shortcuts } from "../lib/meetings";
+  import { giveShortcut, matching, meetingApp, meetingApps, offered as canGive, shortcuts } from "../lib/meetings";
 
   // look: the key's, which an "Open app" key without one of its own takes
   // from the app
@@ -42,7 +42,7 @@
     types,
     label = "Does",
     look,
-  }: { action: Action; types: string[]; label?: string | null; look?: Look } = $props();
+  }: { action: Action; types: string[]; label?: string | null; look?: Look & { on?: Look } } = $props();
 
   const { doc, device, deck, features } = app();
   // what the device supports, plus what this action already has, so the
@@ -60,6 +60,8 @@
         : `Mac: ${formatCombo(action.mac_keys)}`,
   );
   let meeting = $derived(matching(action));
+  // ready-made keys: for the key itself, not a step or fallback
+  let readyMade = $derived(!!look && (!action.type || action.type === "hid-key" || meeting.length > 0));
   const plus = (l: string[] | undefined, v: unknown) =>
     l && typeof v === "string" && v && !l.includes(v) ? [...l, v] : l;
   let offered = $derived(types.filter((t) => !t || !f || f.actions.includes(realType(t)) || t === kind(action)));
@@ -175,30 +177,30 @@
   </select>
 </label>
 
-{#if action.type === "hid-key"}
-  {#if look}
-    <select
-      value=""
-      onchange={(e) => {
-        pickShortcut(Number(e.currentTarget.value));
-        e.currentTarget.value = "";
-      }}
-      aria-label="Ready-made"
-      class="ready"
-    >
-      <option value="" disabled>Ready-made…</option>
-      {#each meetingApps as m (m.id)}
+{#if readyMade}
+  <select
+    value=""
+    onchange={(e) => {
+      pickShortcut(Number(e.currentTarget.value));
+      e.currentTarget.value = "";
+    }}
+    aria-label="Ready-made"
+    class="ready"
+  >
+    <option value="" disabled>Ready-made…</option>
+    {#each meetingApps as m (m.id)}
+      {#if shortcuts.some((s) => s.app === m.id && canGive(s, f))}
         <optgroup label={m.title}>
-          {#each shortcuts as s, i (i)}{#if s.app === m.id}<option value={i}>{s.title}</option>{/if}{/each}
+          {#each shortcuts as s, i (i)}{#if s.app === m.id && canGive(s, f)}<option value={i}>{s.title}</option>{/if}{/each}
         </optgroup>
-      {/each}
-    </select>
-  {/if}
+      {/if}
+    {/each}
+  </select>
+{/if}
+
+{#if action.type === "hid-key"}
   <ComboField keys={action[combo]} {known} onchange={(k) => set(action, combo, k)} />
   {#if otherCombo}<p class="muted small">{otherCombo}</p>{/if}
-  {#each meeting as s (s.app)}
-    <p class="muted small">{meetingApp(s.app)?.note}{s.note ? ` ${s.note}` : ""}</p>
-  {/each}
 {:else if action.type === "hid-consumer"}
   <select
     value={usageNumber ? "number" : action.usage}
@@ -372,6 +374,12 @@
     {/if}
     <p class="muted small">The device draws the song playing on the PC on this key.</p>
   {/if}
+{/if}
+
+{#if look}
+  {#each meeting as s (s.app)}
+    <p class="muted small">{meetingApp(s.app)?.note}{s.note ? ` ${s.note}` : ""}</p>
+  {/each}
 {/if}
 
 {#if isPC(action.type) && helperMissing}

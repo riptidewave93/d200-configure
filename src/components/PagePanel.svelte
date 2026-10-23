@@ -3,10 +3,12 @@
   import { app } from "../lib/context";
   import type { Doc } from "../lib/doc.svelte";
   import { loadLogos } from "../lib/logos";
-  import { fillPage, meetingApps } from "../lib/meetings";
+  import { fillPage, forPage, meetingApps } from "../lib/meetings";
 
   let { doc }: { doc: Doc } = $props();
-  const { model } = app();
+  const { model, features } = app();
+  // the mic app isn't a page of its own; it joins the others' pages
+  const pageApps = meetingApps.filter((m) => m.id !== "mic");
 
   let name = $state("");
   let input: HTMLInputElement;
@@ -36,7 +38,7 @@
   let full = $state("");
   async function fill(id: string) {
     const logos = await loadLogos().catch(() => []);
-    full = fillPage(doc.config!, doc.page, model().windows.length, id, logos) ? "" : "No empty keys, or they're all here already.";
+    full = fillPage(doc.config!, doc.page, model().windows.length, forPage(id, features()), logos) ? "" : "No empty keys, or they're all here already.";
   }
 
   function remove() {
@@ -85,7 +87,7 @@
 
   <h3>Meeting keys</h3>
   <div class="row">
-    {#each meetingApps as m (m.id)}
+    {#each pageApps as m (m.id)}
       <button class="plain" title="Put {m.title}'s shortcuts on the empty keys" onclick={() => fill(m.id)}>+ {m.title}</button>
     {/each}
   </div>
