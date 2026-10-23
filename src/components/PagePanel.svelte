@@ -38,7 +38,9 @@
   let full = $state("");
   async function fill(id: string) {
     const logos = await loadLogos().catch(() => []);
-    full = fillPage(doc.config!, doc.page, model().windows.length, forPage(id, features()), logos) ? "" : "No empty keys, or they're all here already.";
+    // the square keys: the wide one is last
+    const keys = model().windows.filter((r) => r.w <= r.h).length;
+    full = fillPage(doc.config!, doc.page, keys, forPage(id, features()), logos) ? "" : "No empty keys, or they're all here already.";
   }
 
   function remove() {
